@@ -1,0 +1,17 @@
+*.filters
+*.user
+*.suo
+*.sdf
+*.dll
+*.pdb
+*.exe
+*.exp
+*.ilk
+*.lib
+*.aps
+*.opensdf
+/ipch
+/Lib
+/DuiLib/Build
+/USBMonitor/Debug
+/USBMonitor/Release
