@@ -80,6 +80,7 @@
     <None Include="USBMonitor.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DeviceMonitor.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
@@ -87,6 +88,7 @@
     <ClInclude Include="App.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DeviceMonitor.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

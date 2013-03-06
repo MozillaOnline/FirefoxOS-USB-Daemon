@@ -1,24 +1,44 @@
 #include "StdAfx.h"
 #include "MainFrame.h"
-
+#include "DeviceMonitor.h"
 
 MainFrame::MainFrame(void)
+	: m_pDeviceStatusLabel(NULL)
 {
+	m_pDeviceMonitor = new DeviceMonitor();
 }
 
 
 MainFrame::~MainFrame(void)
 {
+	delete m_pDeviceMonitor;
 }
 
 void MainFrame::OnPrepare(TNotifyUI& msg)
 {
 	SetupWindowRegion();
+
+	// Bind UI control variables
+	m_pDeviceStatusLabel = static_cast<CLabelUI*>(m_PaintManager.FindControl(_T("deviceStatusLabel")));
+	ASSERT(m_pDeviceStatusLabel);
+}
+
+void MainFrame::InitWindow()
+{
+	WindowImplBase::InitWindow();
+	// Register the device change notification so that we can get 
+	// the WM_DEVICECHANGE notification even if a device doesn't 
+	// have hardware driver installed.
+	m_pDeviceMonitor->RegisterToWindow(m_hWnd);
 }
 
 void MainFrame::OnFinalMessage(HWND hWnd)
 {
 	WindowImplBase::OnFinalMessage(hWnd);
+	
+	// Unregister the device change notification.
+	m_pDeviceMonitor->Unregister();
+
 	::PostQuitMessage(0);
 }
 
@@ -48,6 +68,44 @@ LRESULT MainFrame::OnSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandle
 	bHandled = FALSE;
 	return 0;
 }
+
+
+LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+{
+	LRESULT lRes = 0;
+	switch (uMsg)
+	{
+	case WM_DEVICECHANGE:			bHandled = OnDeviceChange(static_cast<UINT>(wParam), static_cast<DWORD_PTR>(lParam)); break;
+	default:						bHandled = FALSE; break;
+	}
+	return 0;
+}
+
+bool MainFrame::OnDeviceChange (UINT nEventType, DWORD_PTR dwData)
+{
+	bool handled = true;
+	switch(nEventType)
+	{
+	case DBT_DEVICEARRIVAL:
+		{
+			// A device has been inserted.
+			ShowWindow();
+			m_pDeviceStatusLabel->SetText(_T("Device connected"));
+		}
+		break;
+	case DBT_DEVICEREMOVECOMPLETE:
+		{
+			// A device has been removed
+			m_pDeviceStatusLabel->SetText(_T("Device disconnected"));
+		}
+		break;
+	default:
+		handled = false;
+		break;
+	}
+	return handled;
+}
+
 
 void MainFrame::SetupWindowRegion()
 {

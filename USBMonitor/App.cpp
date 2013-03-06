@@ -17,7 +17,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 	CPaintManagerUI::SetResourcePath(CPaintManagerUI::GetInstancePath());
 
-	::CoInitialize(NULL);
+	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
 	MainFrame mainFrame;
 	CDuiString strTitle; 
@@ -25,7 +25,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	mainFrame.Create(NULL, strTitle, UI_WNDSTYLE_FRAME, 0L, 0, 0, 190, 341);
 	mainFrame.CenterWindow();
 	mainFrame.SetIcon(IDI_USBMONITOR);
-	::ShowWindow(mainFrame, SW_SHOW);
+	mainFrame.ShowWindow();
 
 	CPaintManagerUI::MessageLoop();
 

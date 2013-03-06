@@ -17,6 +17,8 @@
 #include <memory.h>
 #include <tchar.h>
 
+// WM_DEVICECHANGE and Device change notification
+#include <dbt.h>
 
 // DuiLib
 #include <objbase.h>
