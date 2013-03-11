@@ -20,6 +20,10 @@
 // WM_DEVICECHANGE and Device change notification
 #include <dbt.h>
 
+// Device enumeration 
+#include <setupapi.h>
+#pragma comment(lib, "Setupapi.lib")
+
 // DuiLib
 #include <objbase.h>
 #include "..\DuiLib\UIlib.h"

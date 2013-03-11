@@ -4,6 +4,7 @@
 
 MainFrame::MainFrame(void)
 	: m_pDeviceStatusLabel(NULL)
+	, m_pDeviceList(NULL)
 {
 	m_pDeviceMonitor = new DeviceMonitor();
 }
@@ -21,6 +22,14 @@ void MainFrame::OnPrepare(TNotifyUI& msg)
 	// Bind UI control variables
 	m_pDeviceStatusLabel = static_cast<CLabelUI*>(m_PaintManager.FindControl(_T("deviceStatusLabel")));
 	ASSERT(m_pDeviceStatusLabel);
+	m_pDeviceList = static_cast<CListUI*>(m_PaintManager.FindControl(_T("deviceList")));
+	ASSERT(m_pDeviceList);
+	m_pDeviceList->SetTextCallback(this);
+
+	// Register to get notification when the supported devices are changed.
+	m_pDeviceMonitor->AddObserver(this);
+
+	UpdateDeviceList();
 }
 
 void MainFrame::InitWindow()
@@ -35,6 +44,9 @@ void MainFrame::InitWindow()
 void MainFrame::OnFinalMessage(HWND hWnd)
 {
 	WindowImplBase::OnFinalMessage(hWnd);
+
+	// Unregister the device monitor notification.
+	m_pDeviceMonitor->RemoveObserver(this);
 	
 	// Unregister the device change notification.
 	m_pDeviceMonitor->Unregister();
@@ -75,37 +87,66 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 	LRESULT lRes = 0;
 	switch (uMsg)
 	{
-	case WM_DEVICECHANGE:			bHandled = OnDeviceChange(static_cast<UINT>(wParam), static_cast<DWORD_PTR>(lParam)); break;
+	case WM_DEVICECHANGE:			
+		{
+			bHandled = m_pDeviceMonitor && lParam &&
+				m_pDeviceMonitor->OnDeviceChange(static_cast<UINT>(wParam), reinterpret_cast<PDEV_BROADCAST_HDR>(lParam)); 
+		}
+		break;
 	default:						bHandled = FALSE; break;
 	}
 	return 0;
 }
 
-bool MainFrame::OnDeviceChange (UINT nEventType, DWORD_PTR dwData)
+static const CDuiString GetSerialNumber(const CDuiString& sDevId)
 {
-	bool handled = true;
-	switch(nEventType)
+	int pos = sDevId.ReverseFind(_T('\\'));
+	CDuiString sSerial = sDevId.Mid(pos + 1);
+	return sSerial;
+}
+
+// A supported device has been inserted.
+void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
+{
+	CDuiString text;
+	text.Format(_T("%s connected"), GetSerialNumber(lpstrDevId));
+	m_pDeviceStatusLabel->SetText(text);
+
+	UpdateDeviceList();
+}
+
+// A supported device has been removed.
+void MainFrame::OnDeviceRemoved(LPCTSTR lpstrDevId)
+{
+	CDuiString text;
+	text.Format(_T("%s disconnected"),  GetSerialNumber(lpstrDevId));
+	m_pDeviceStatusLabel->SetText(text);
+
+	UpdateDeviceList();
+}
+
+// Overrides IListCallbackUI
+LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
+{
+	LPCTSTR strEmpty = _T("");
+
+	switch(iSubItem)
 	{
-	case DBT_DEVICEARRIVAL:
+	case 0:
 		{
-			// A device has been inserted.
-			ShowWindow();
-			m_pDeviceStatusLabel->SetText(_T("Device connected"));
-		}
-		break;
-	case DBT_DEVICEREMOVECOMPLETE:
-		{
-			// A device has been removed
-			m_pDeviceStatusLabel->SetText(_T("Device disconnected"));
+			const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(iItem);
+			if (pInfo)
+			{
+				return  GetSerialNumber(pInfo->DeviceInstanceId);
+			}
 		}
 		break;
 	default:
-		handled = false;
-		break;
+		return _T("Unknown");
 	}
-	return handled;
+	
+	return strEmpty;
 }
-
 
 void MainFrame::SetupWindowRegion()
 {
@@ -172,4 +213,22 @@ void MainFrame::SetupWindowRegion()
 
 	// Change the window size to fit the background image
 	::SetWindowPos(m_hWnd, NULL, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER);
+}
+
+void MainFrame::UpdateDeviceList()
+{
+	m_pDeviceList->RemoveAll();
+
+	int count = m_pDeviceMonitor->GetDeviceCount();
+
+	for (int i = 0; i < count; i++)
+	{
+		CListTextElementUI* pListElement = new CListTextElementUI();
+		m_pDeviceList->Add(pListElement);
+	}
+
+	// The data to be shown will be filled out later by calling 
+	// the function MainFrame::GetItemText.
+
+	m_pDeviceList->SetVisible(count > 0);
 }

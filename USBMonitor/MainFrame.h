@@ -1,13 +1,19 @@
 #pragma once
 
-class DeviceMonitor;
+#include "DeviceMonitor.h"
 
-class MainFrame :
-	public WindowImplBase
+class MainFrame
+	: public WindowImplBase
+	, public DeviceMonitorObserver
+	, public IListCallbackUI
 {
 public:
 	MainFrame(void);
 	~MainFrame(void);
+
+	//
+	// Overrides WindowImplBase
+	//
 
 	// Called after the window shows
 	void OnPrepare(TNotifyUI& msg);
@@ -20,16 +26,11 @@ public:
 
 	virtual LRESULT OnSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	virtual LRESULT HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
-	/*
-	 * WM_DEVICECHANGE Handler, called to when there is a change to the hardware configuration of a device or the computer.
-	 * @param nEventType An event type, which can be one of the two values:
-	 *                   1. DBT_DEVICEARRIVAL   A device has been inserted and is now available.
-	 *                   2. DBT_DEVICEREMOVECOMPLETE   Device has been removed.
-	 * @param dwData The address of a structure that contains event-specific data. Its meaning depends on the given event.
-	 */
-	bool OnDeviceChange (UINT nEventType, DWORD_PTR dwData);
-
 protected:
+	//
+	// Overrides WindowImplBase
+	//
+
 	virtual CDuiString GetSkinFile()
 	{
 		return _T("main_frame.xml");
@@ -45,12 +46,33 @@ protected:
 		return _T("FirefoxOS-USB-Daemon");
 	}
 
+public:
+	//
+	// Overrides DeviceMonitorObserver
+	//
+
+	// A supported device has been inserted.
+	virtual void OnDeviceInserted(LPCTSTR lpstrDevId);
+
+	// A supported device has been removed.
+	virtual void OnDeviceRemoved(LPCTSTR lpstrDevId);
+
+public:
+	// 
+	// Overrides IListCallbackUI
+	//
+	virtual LPCTSTR GetItemText(CControlUI* pList, int iItem, int iSubItem);
+
 private:
 	// Change the shape of window to that of the background
 	void SetupWindowRegion();
 
+	// Update the device list
+	void UpdateDeviceList();
+
 	DeviceMonitor* m_pDeviceMonitor;
 
 	CLabelUI* m_pDeviceStatusLabel;
+	CListUI* m_pDeviceList;
 };
 
