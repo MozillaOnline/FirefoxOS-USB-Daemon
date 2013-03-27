@@ -279,6 +279,7 @@ void DeviceMonitor::UpdateDeviceList()
 		if (FilterDevice(pNode))
 		{
 			m_aDeviceList.push_back(pNode);
+			GetAndroidSubDeviceInfo(spDevInfoData.DevInst, pNode);
 		}
 		else
 		{
@@ -293,7 +294,7 @@ void DeviceMonitor::UpdateDeviceList()
  * Check if the USB is supported.
  * @return true if the device is supported. Otherwise false.
  */
-bool DeviceMonitor::FilterDevice(DeviceInfo* pDevInfo)
+bool DeviceMonitor::FilterDevice(const DeviceInfo* pDevInfo)
 {
 	static LPCTSTR const arSupportedDeviceIds[] = {
 		_T("USB\\VID_19D2&PID_1350\\FULL_UNAGI"),
@@ -306,6 +307,121 @@ bool DeviceMonitor::FilterDevice(DeviceInfo* pDevInfo)
 		if (pDevInfo->DeviceInstanceId == arSupportedDeviceIds[i])
 			return true;
 	}
+
+	return false;
+}
+
+/**
+ * The wrapper function of CM_Get_DevNode_Registry_Property.
+ * @param dnInst A caller-supplied device instance handle that is bound to the local machine.
+ * @param ulProperty A CM_DRP_-prefixed constant value that identifies the device property to be obtained from the registry. These constants are defined in Cfgmgr32.h.
+ * @return The string representation of the property of the following formats:
+ *         REG_DWORD - The hexadecimal number is converted to a string of ten characters and starts with "0x", such as "0x00000000"
+ *         REG_SZ - A single string.
+ *         REG_MULTI_SZ - The concatenation of multiple strings separated by ",".
+ */
+static CDuiString GetDevNodePropertyString(DEVINST dnDevInst, ULONG ulProperty)
+{
+	CDuiString result;
+	ULONG type = 0;
+
+	// Get the property data length
+	ULONG length = 0;
+	CM_Get_DevNode_Registry_Property(dnDevInst, ulProperty, &type, NULL, &length, 0);
+	if (length > 0)
+	{
+		// Get the property data value
+		TCHAR* pBuffer = new TCHAR[length];
+		if (CM_Get_DevNode_Registry_Property(dnDevInst, ulProperty, &type, pBuffer, &length, 0) == CR_SUCCESS)
+		{
+			switch (type)
+			{
+			case REG_DWORD:
+				{
+					DWORD dwValue = *reinterpret_cast<DWORD *>(pBuffer);
+					result.Format(_T("0x%08x"), dwValue);
+				}
+				break;
+			case REG_MULTI_SZ:
+				{
+					LPTSTR p = pBuffer;
+					while (*p != _T('\0'))
+					{
+						p++;
+						if (*p == _T('\0'))
+						{
+							*p = _T(',');
+							p++;
+						}
+					}
+					result = pBuffer;
+					if (result.Right(1) == _T(","))
+					{
+						result = result.Left(result.GetLength() - 1);
+					}
+				}
+				break;
+			case REG_SZ:
+				{
+					result = pBuffer;
+				}
+				break;
+			default:
+				{
+					TRACE(_T("Unkown property type: %d\n"), type);
+				}
+				break;
+			}
+		}
+		delete[] pBuffer;
+	}
+
+	return result;
+}
+
+bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevInfo)
+{
+	ASSERT(pDevInfo);
+
+	// Enumerate the sub-devices to find the android sub-device
+
+	DEVINST dnChild = NULL;
+	if (CM_Get_Child(&dnChild, dnDevInst, 0) != CR_SUCCESS)
+	{
+		return false;
+	}
+
+	do
+	{
+		/**
+		 * If the driver of the android device is not installed, the device description should be "Android" or "Android Device",
+		 * and the device class is empty.
+		 * Otherwise the device description is specified by the driver, and the class GUID is {f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}.
+		 * As a result, we can find the android device by checking either its decription or device class GUID.
+		 */
+		CDuiString sDeviceDescription = GetDevNodePropertyString(dnChild, CM_DRP_DEVICEDESC);
+		CDuiString sLowercaseDesc = sDeviceDescription;
+		sLowercaseDesc.MakeLower();
+
+		CDuiString sClassGUID = GetDevNodePropertyString(dnChild, CM_DRP_CLASSGUID);
+		
+		// Check if the sub device is the android.
+		if (sLowercaseDesc.Find(_T("android")) == -1 && sClassGUID != _T("{f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}"))
+		{
+			continue;
+		}
+
+		// Get device info.
+
+		pDevInfo->DeviceDescription = sDeviceDescription;
+		pDevInfo->AndroidHardwareID = GetDevNodePropertyString(dnChild, CM_DRP_HARDWAREID);
+		pDevInfo->InstallState = _tcstol((LPCTSTR)GetDevNodePropertyString(dnChild, CM_DRP_INSTALL_STATE), NULL, 16);
+
+		TRACE(_T("Android device found!\nDescription: %s\nHardware ID: %s\nDriver install state: 0x%lx\n\n"), (LPCTSTR)pDevInfo->DeviceDescription, (LPCTSTR)pDevInfo->AndroidHardwareID, pDevInfo->InstallState);
+
+		return true;
+	}
+	while(CM_Get_Sibling(&dnChild, dnChild, 0) == CR_SUCCESS);
 
 	return false;
 }

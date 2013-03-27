@@ -80,6 +80,7 @@
     <None Include="USBMonitor.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="debug.h" />
     <ClInclude Include="DeviceMonitor.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="Resource.h" />

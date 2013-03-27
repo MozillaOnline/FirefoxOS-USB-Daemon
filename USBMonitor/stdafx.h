@@ -24,6 +24,13 @@
 #include <setupapi.h>
 #pragma comment(lib, "Setupapi.lib")
 
+// Pnp Configuration Manager Function
+// CM_Get_Child, CM_Get_Sibling, CM_Get_DevNode_Registry_Property
+#include <Cfgmgr32.h>
+
+// Debugging macros, such ASSERT, TRACE...
+#include "debug.h"
+
 // DuiLib
 #include <objbase.h>
 #include "..\DuiLib\UIlib.h"

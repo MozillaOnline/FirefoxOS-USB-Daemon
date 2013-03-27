@@ -128,24 +128,31 @@ void MainFrame::OnDeviceRemoved(LPCTSTR lpstrDevId)
 // Overrides IListCallbackUI
 LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 {
-	LPCTSTR strEmpty = _T("");
+	LPCTSTR strText = _T("");
+
+	const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(iItem);
+	if (pInfo == NULL)
+	{
+		return strText;
+	}
 
 	switch(iSubItem)
 	{
 	case 0:
 		{
-			const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(iItem);
-			if (pInfo)
-			{
-				return  GetSerialNumber(pInfo->DeviceInstanceId);
-			}
+			strText = GetSerialNumber(pInfo->DeviceInstanceId);
+		}
+		break;
+	case 1:
+		{
+			strText = pInfo->GetInstallStateString();
 		}
 		break;
 	default:
 		return _T("Unknown");
 	}
 	
-	return strEmpty;
+	return strText;
 }
 
 void MainFrame::SetupWindowRegion()

@@ -3,6 +3,27 @@
 struct DeviceInfo
 {
 	CDuiString DeviceInstanceId;
+	CDuiString DeviceDescription;
+	CDuiString AndroidHardwareID;
+	/**
+	 * #define CM_INSTALL_STATE_INSTALLED                      0
+     * #define CM_INSTALL_STATE_NEEDS_REINSTALL                1
+	 * #define CM_INSTALL_STATE_FAILED_INSTALL                 2
+     * #define CM_INSTALL_STATE_FINISH_INSTALL                 3
+	 */
+	DWORD InstallState;
+
+	DeviceInfo()
+		: InstallState(0)
+	{
+	}
+
+	CDuiString GetInstallStateString() const
+	{
+		static LPCTSTR STATES[] = {_T("INSTALLED"), _T("NEEDS_REINSTALL"), _T("FAILED_INSTALL"), _T("FINISH_INSTALL")};
+		ASSERT(InstallState <= 3);
+		return STATES[InstallState];
+	}
 };
 
 /**
@@ -95,7 +116,10 @@ private:
 	 * Check if the USB is supported.
 	 * @return true if the device is supported. Otherwise false.
 	 */
-	bool FilterDevice(DeviceInfo* pDevInfo);
+	bool FilterDevice(const DeviceInfo* pDevInfo);
+
+	// Enumerates the sub-devices to find the android sub-device and get its device info.
+	bool GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevInfo);
 
 	// The observer list
 	vector<DeviceMonitorObserver*> m_aObservers;
