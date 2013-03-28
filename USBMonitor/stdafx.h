@@ -28,6 +28,18 @@
 // CM_Get_Child, CM_Get_Sibling, CM_Get_DevNode_Registry_Property
 #include <Cfgmgr32.h>
 
+// ATL base
+#include <atlcore.h>
+// String conversion functions, such as A2T, T2A
+#include <atlconv.h>
+// CString
+#include <atlstr.h>
+// CAtlMap
+#include <atlcoll.h>
+
+// std::ifstream
+#include <fstream>
+
 // Debugging macros, such ASSERT, TRACE...
 #include "debug.h"
 
@@ -48,3 +60,12 @@ using namespace DuiLib;
 #       pragma comment(lib, "..\\Lib\\DuiLib.lib")
 #   endif
 #endif
+
+// JsonCpp library
+#include "json/json.h"
+#if defined(_DEBUG)
+	#define JSON_LIB_SUFFIX "d.lib"
+#else
+	#define JSON_LIB_SUFFIX ".lib"
+#endif
+#pragma comment(lib, "lib_json" JSON_LIB_SUFFIX)

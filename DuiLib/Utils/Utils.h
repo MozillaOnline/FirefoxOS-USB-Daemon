@@ -131,11 +131,7 @@ namespace DuiLib
 	class UILIB_API CDuiString
 	{
 	public:
-		enum 
-		{ 
-			MAX_LOCAL_STRING_LEN = 63,
-			MAX_LOAD_STRING_LEN = 1024
-		};
+		enum { MAX_LOCAL_STRING_LEN = 63 };
 
 		CDuiString();
 		CDuiString(const TCHAR ch);
@@ -149,14 +145,6 @@ namespace DuiLib
 		TCHAR GetAt(int nIndex) const;
 		void Append(LPCTSTR pstr);
 		void Assign(LPCTSTR pstr, int nLength = -1);
-		/*
-		 * Load the string from resource 'nID'.
-		 * The maximum number of character to load is MAX_LOAD_STRING_LEN(1024) - 1.
-		 * @param nID -  A Windows string resource ID.
-		 * @return true if resource load was successful; otherwise false.
-		 */
-		bool LoadString(UINT nID);
-
 		LPCTSTR GetData() const;
 
 		void SetAt(int nIndex, TCHAR ch);

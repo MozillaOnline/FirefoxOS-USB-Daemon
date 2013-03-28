@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "DeviceMonitor.h"
+#include "DeviceDatabase.h"
 
 /*
  * The GUID_DEVINTERFACE_USB_DEVICE device interface class is defined for USB devices that are attached to a USB hub.
@@ -108,16 +109,16 @@ void DeviceMonitor::Unregister()
  * USB\Vid_04e8&Pid_503b\0002F9A9828E0F06
  * 
  */
-static CDuiString dbcc_nameToDeviceInstanceId(LPCTSTR ddbc_name)
+static CString dbcc_nameToDeviceInstanceId(LPCTSTR ddbc_name)
 {
-	CDuiString sEmptyId = _T("");
+	CString sEmptyId = _T("");
 
 	if (ddbc_name == NULL)
 	{
 		return sEmptyId;
 	}
 
-	CDuiString sDbccName(ddbc_name);
+	CString sDbccName(ddbc_name);
 
 	// Skip the "\\?\" at the beginning
 	int left = 4;
@@ -133,7 +134,7 @@ static CDuiString dbcc_nameToDeviceInstanceId(LPCTSTR ddbc_name)
 		return sEmptyId;
 	}
 
-	CDuiString sDevId = sDbccName.Mid(left, right - left);
+	CString sDevId = sDbccName.Mid(left, right - left);
 	sDevId.Replace(_T("#"), _T("\\"));
 	sDevId.MakeUpper();
 
@@ -154,7 +155,7 @@ bool DeviceMonitor::OnDeviceChange(UINT nEventType, PDEV_BROADCAST_HDR pHdr)
 
 	// Get the device instance id
 	PDEV_BROADCAST_DEVICEINTERFACE pDeviceInterface = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE>(pHdr);
-	CDuiString sDevId = dbcc_nameToDeviceInstanceId(pDeviceInterface->dbcc_name);
+	CString sDevId = dbcc_nameToDeviceInstanceId(pDeviceInterface->dbcc_name);
 
 	if (nEventType == DBT_DEVICEARRIVAL)
 	{
@@ -275,6 +276,7 @@ void DeviceMonitor::UpdateDeviceList()
 			break;
 		}
 		pNode->DeviceInstanceId = szBuffer;
+		pNode->DeviceSerialNumber = DeviceInfo::GetSerialNumber(pNode->DeviceInstanceId);
 
 		if (FilterDevice(pNode))
 		{
@@ -296,19 +298,7 @@ void DeviceMonitor::UpdateDeviceList()
  */
 bool DeviceMonitor::FilterDevice(const DeviceInfo* pDevInfo)
 {
-	static LPCTSTR const arSupportedDeviceIds[] = {
-		_T("USB\\VID_19D2&PID_1350\\FULL_UNAGI"),
-		_T("USB\\VID_19D2&PID_1350\\FULL_OTORO")
-	};
-
-	int count = sizeof(arSupportedDeviceIds) / sizeof(LPCTSTR);
-	for (int i = 0; i < count; i++)
-	{
-		if (pDevInfo->DeviceInstanceId == arSupportedDeviceIds[i])
-			return true;
-	}
-
-	return false;
+	return DeviceDatabase::Instance()->FindDriverByDeviceInstanceID(pDevInfo->DeviceInstanceId) != NULL;
 }
 
 /**
@@ -320,9 +310,9 @@ bool DeviceMonitor::FilterDevice(const DeviceInfo* pDevInfo)
  *         REG_SZ - A single string.
  *         REG_MULTI_SZ - The concatenation of multiple strings separated by ",".
  */
-static CDuiString GetDevNodePropertyString(DEVINST dnDevInst, ULONG ulProperty)
+static CString GetDevNodePropertyString(DEVINST dnDevInst, ULONG ulProperty)
 {
-	CDuiString result;
+	CString result;
 	ULONG type = 0;
 
 	// Get the property data length
@@ -399,11 +389,11 @@ bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevI
 		 * Otherwise the device description is specified by the driver, and the class GUID is {f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}.
 		 * As a result, we can find the android device by checking either its decription or device class GUID.
 		 */
-		CDuiString sDeviceDescription = GetDevNodePropertyString(dnChild, CM_DRP_DEVICEDESC);
-		CDuiString sLowercaseDesc = sDeviceDescription;
+		CString sDeviceDescription = GetDevNodePropertyString(dnChild, CM_DRP_DEVICEDESC);
+		CString sLowercaseDesc = sDeviceDescription;
 		sLowercaseDesc.MakeLower();
 
-		CDuiString sClassGUID = GetDevNodePropertyString(dnChild, CM_DRP_CLASSGUID);
+		CString sClassGUID = GetDevNodePropertyString(dnChild, CM_DRP_CLASSGUID);
 		
 		// Check if the sub device is the android.
 		if (sLowercaseDesc.Find(_T("android")) == -1 && sClassGUID != _T("{f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}"))

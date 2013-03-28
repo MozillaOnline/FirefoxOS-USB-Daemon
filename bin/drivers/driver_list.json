@@ -1,0 +1,13 @@
+{
+	"version":1.0,
+	"devices": [{
+			"device_instance_id": "USB\\VID_19D2&PID_1350\\FULL_UNAGI",
+			"android_hardware_id": "USB\\VID_19D2&PID_1350&REV_0231&MI_04,USB\\VID_19D2&PID_1350&MI_04",
+			"driver_download_url": "drivers/google_usb_driver/android_winusb.inf"
+		}, {
+			"device_instance_id": "USB\\VID_19D2&PID_1350\\FULL_OTORO",
+			"android_hardware_id": "USB\\VID_19D2&PID_1350&REV_0231&MI_04,USB\\VID_19D2&PID_1350&MI_04",
+			"driver_download_url": "drivers/google_usb_driver/android_winusb.inf"
+		}
+	]
+}

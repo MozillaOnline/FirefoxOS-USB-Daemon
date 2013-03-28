@@ -805,6 +805,7 @@ bool CPaintManagerUI::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam, LR
                 m_hwndTooltip = ::CreateWindowEx(0, TOOLTIPS_CLASS, NULL, WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, m_hWndPaint, NULL, m_hInstance, NULL);
                 ::SendMessage(m_hwndTooltip, TTM_ADDTOOL, 0, (LPARAM) &m_ToolTip);
             }
+			::SendMessage( m_hwndTooltip,TTM_SETMAXTIPWIDTH,0, pHover->GetToolTipWidth());
             ::SendMessage(m_hwndTooltip, TTM_SETTOOLINFO, 0, (LPARAM) &m_ToolTip);
             ::SendMessage(m_hwndTooltip, TTM_TRACKACTIVATE, TRUE, (LPARAM) &m_ToolTip);
         }
@@ -2193,16 +2194,18 @@ bool CPaintManagerUI::TranslateMessage(const LPMSG pMsg)
 	// tabbing and shortcut key-combos. We'll look for all messages for
 	// each window and any child control attached.
 	UINT uStyle = GetWindowStyle(pMsg->hwnd);
-	LRESULT lRes = 0;	
 	UINT uChildRes = uStyle & WS_CHILD;	
-	if (uChildRes != 0)//×Ó´°¿Ú
+	LRESULT lRes = 0;
+	if (uChildRes != 0)
 	{
-		HWND hTempParent = ::GetParent(pMsg->hwnd);
-		while(hTempParent)
+		HWND hWndParent = ::GetParent(pMsg->hwnd);
+
+		for( int i = 0; i < m_aPreMessages.GetSize(); i++ ) 
 		{
-			for( int i = 0; i < m_aPreMessages.GetSize(); i++ ) 
+			CPaintManagerUI* pT = static_cast<CPaintManagerUI*>(m_aPreMessages[i]);        
+			HWND hTempParent = hWndParent;
+			while(hTempParent)
 			{
-				CPaintManagerUI* pT = static_cast<CPaintManagerUI*>(m_aPreMessages[i]);
 				if(pMsg->hwnd == pT->GetPaintWindow() || hTempParent == pT->GetPaintWindow())
 				{
 					if (pT->TranslateAccelerator(pMsg))
@@ -2213,8 +2216,8 @@ bool CPaintManagerUI::TranslateMessage(const LPMSG pMsg)
 
 					return false;
 				}
+				hTempParent = GetParent(hTempParent);
 			}
-			hTempParent = GetParent(hTempParent);
 		}
 	}
 	else

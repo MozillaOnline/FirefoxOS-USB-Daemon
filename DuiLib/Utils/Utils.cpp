@@ -434,22 +434,6 @@ namespace DuiLib
 		m_pstr[cchMax] = '\0';
 	}
 
-	bool CDuiString::LoadString(UINT nID)
-	{
-		HINSTANCE hInst = CPaintManagerUI::GetInstance();
-		if (hInst == NULL) 
-		{
-			return false;
-		}
-		TCHAR szBuffer[MAX_LOAD_STRING_LEN];
-		bool success = ::LoadString(hInst, nID, szBuffer, MAX_LOAD_STRING_LEN)  != 0;
-		if (success)
-		{
-			Assign(szBuffer);
-		}
-		return success;
-	}
-
 	bool CDuiString::IsEmpty() const 
 	{ 
 		return m_pstr[0] == '\0'; 

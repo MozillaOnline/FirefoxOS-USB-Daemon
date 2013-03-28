@@ -98,18 +98,11 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 	return 0;
 }
 
-static const CDuiString GetSerialNumber(const CDuiString& sDevId)
-{
-	int pos = sDevId.ReverseFind(_T('\\'));
-	CDuiString sSerial = sDevId.Mid(pos + 1);
-	return sSerial;
-}
-
 // A supported device has been inserted.
 void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 {
-	CDuiString text;
-	text.Format(_T("%s connected"), GetSerialNumber(lpstrDevId));
+	CString text;
+	text.Format(_T("%s connected"), DeviceInfo::GetSerialNumber(lpstrDevId));
 	m_pDeviceStatusLabel->SetText(text);
 
 	UpdateDeviceList();
@@ -118,8 +111,8 @@ void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 // A supported device has been removed.
 void MainFrame::OnDeviceRemoved(LPCTSTR lpstrDevId)
 {
-	CDuiString text;
-	text.Format(_T("%s disconnected"),  GetSerialNumber(lpstrDevId));
+	CString text;
+	text.Format(_T("%s disconnected"), DeviceInfo::GetSerialNumber(lpstrDevId));
 	m_pDeviceStatusLabel->SetText(text);
 
 	UpdateDeviceList();
@@ -140,7 +133,7 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 	{
 	case 0:
 		{
-			strText = GetSerialNumber(pInfo->DeviceInstanceId);
+			strText = pInfo->DeviceSerialNumber;
 		}
 		break;
 	case 1:
@@ -163,7 +156,7 @@ void MainFrame::SetupWindowRegion()
 	const COLORREF cTrans = RGB(0, 0, 255);
 
 	// Background image name
-	const CDuiString sBackgroundName = _T("background.png");
+	const CString sBackgroundName = _T("background.png");
 
 	// Load background image
 	const TImageInfo* pImageInfo = m_PaintManager.GetImageEx(sBackgroundName);

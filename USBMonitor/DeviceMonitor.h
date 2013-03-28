@@ -2,9 +2,11 @@
 
 struct DeviceInfo
 {
-	CDuiString DeviceInstanceId;
-	CDuiString DeviceDescription;
-	CDuiString AndroidHardwareID;
+	CString DeviceInstanceId;
+	CString DeviceSerialNumber;
+	CString DeviceDescription;
+	CString AndroidHardwareID;
+
 	/**
 	 * #define CM_INSTALL_STATE_INSTALLED                      0
      * #define CM_INSTALL_STATE_NEEDS_REINSTALL                1
@@ -18,11 +20,17 @@ struct DeviceInfo
 	{
 	}
 
-	CDuiString GetInstallStateString() const
+	LPCTSTR GetInstallStateString() const
 	{
 		static LPCTSTR STATES[] = {_T("INSTALLED"), _T("NEEDS_REINSTALL"), _T("FAILED_INSTALL"), _T("FINISH_INSTALL")};
 		ASSERT(InstallState <= 3);
 		return STATES[InstallState];
+	}
+
+	static CString GetSerialNumber(const CString& sDevInstanceId)
+	{
+		int pos = sDevInstanceId.ReverseFind(_T('\\'));
+		return sDevInstanceId.Mid(pos + 1);
 	}
 };
 
