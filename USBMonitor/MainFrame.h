@@ -70,9 +70,14 @@ private:
 	// Update the device list
 	void UpdateDeviceList();
 
+	// WM_TIMER Handler
+	void OnTimer(UINT_PTR nIDEvent);
+
 	DeviceMonitor* m_pDeviceMonitor;
 
 	CLabelUI* m_pDeviceStatusLabel;
 	CListUI* m_pDeviceList;
+
+	static const UINT_PTR DEVICE_LIST_DELAY_UPDATE_TIMER_ID = 0;
 };
 

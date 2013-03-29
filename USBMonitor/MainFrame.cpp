@@ -93,6 +93,11 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 				m_pDeviceMonitor->OnDeviceChange(static_cast<UINT>(wParam), reinterpret_cast<PDEV_BROADCAST_HDR>(lParam)); 
 		}
 		break;
+	case WM_TIMER:
+		{
+			OnTimer(wParam);
+		}
+		break;
 	default:						bHandled = FALSE; break;
 	}
 	return 0;
@@ -101,11 +106,12 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 // A supported device has been inserted.
 void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 {
+	// Add delay to make sure it is ready to get the driver installation state.
+	::SetTimer(this->GetHWND(), DEVICE_LIST_DELAY_UPDATE_TIMER_ID, 500, NULL);
+
 	CString text;
 	text.Format(_T("%s connected"), DeviceInfo::GetSerialNumber(lpstrDevId));
 	m_pDeviceStatusLabel->SetText(text);
-
-	UpdateDeviceList();
 }
 
 // A supported device has been removed.
@@ -231,4 +237,13 @@ void MainFrame::UpdateDeviceList()
 	// the function MainFrame::GetItemText.
 
 	m_pDeviceList->SetVisible(count > 0);
+}
+
+void MainFrame::OnTimer(UINT_PTR nIDEvent)
+{
+	if (nIDEvent == DEVICE_LIST_DELAY_UPDATE_TIMER_ID)
+	{
+		UpdateDeviceList();
+		::KillTimer(GetHWND(), DEVICE_LIST_DELAY_UPDATE_TIMER_ID);
+	}
 }

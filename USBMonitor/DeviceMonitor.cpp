@@ -14,12 +14,13 @@ const GUID GUID_DEVINTERFACE_USB_DEVICE \
 DeviceMonitor::DeviceMonitor(void)
 	: m_hDevNotify(NULL)
 {
+	m_cs.Init();
 }
 
 
 DeviceMonitor::~DeviceMonitor(void)
 {
-	ClearDeviceList();
+	m_cs.Term();
 }
 
 void DeviceMonitor::AddObserver(DeviceMonitorObserver* pObserver)
@@ -81,7 +82,7 @@ void DeviceMonitor::RegisterToWindow(HWND hWnd)
 
     m_hDevNotify = ::RegisterDeviceNotification(hWnd,
         &broadcastInterface,
-        DEVICE_NOTIFY_WINDOW_HANDLE);
+        DEVICE_NOTIFY_WINDOW_HANDLE | DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
 
 	UpdateDeviceList();
 }
@@ -165,7 +166,12 @@ bool DeviceMonitor::OnDeviceChange(UINT nEventType, PDEV_BROADCAST_HDR pHdr)
 	// Check if the device is supported
 	if (GetDeviceInfoById(sDevId) == NULL)
 	{
-		return false;
+		const DeviceInfo* pInfo = GetDeviceInfoBySubDeviceId(sDevId);
+		if (pInfo == NULL) 
+		{
+			return false;
+		}
+		sDevId = pInfo->DeviceInstanceId;
 	}
 	
 	if (nEventType == DBT_DEVICEREMOVECOMPLETE)
@@ -204,7 +210,7 @@ bool DeviceMonitor::OnDeviceChange(UINT nEventType, PDEV_BROADCAST_HDR pHdr)
 
 const DeviceInfo* DeviceMonitor::GetDeviceInfoByIndex(int index) const
 {
-	if (index < 0 || index >= static_cast<int>(m_aDeviceList.size()))
+	if (index < 0 || index >= static_cast<int>(m_aDeviceList.GetCount()))
 	{
 		return NULL;
 	}
@@ -218,10 +224,10 @@ const DeviceInfo* DeviceMonitor::GetDeviceInfoById(LPCTSTR lpcstrDeviceInstanceI
 		return NULL;
 	}
 
-	int count = static_cast<int>(m_aDeviceList.size());
+	int count = static_cast<int>(m_aDeviceList.GetCount());
 	for (int i = 0; i < count; i++)
 	{
-		DeviceInfo* pDevInfo = m_aDeviceList[i];
+		const DeviceInfo* pDevInfo = m_aDeviceList[i];
 		if (pDevInfo->DeviceInstanceId == lpcstrDeviceInstanceId)
 		{
 			return pDevInfo;
@@ -230,23 +236,30 @@ const DeviceInfo* DeviceMonitor::GetDeviceInfoById(LPCTSTR lpcstrDeviceInstanceI
 	return NULL;
 }
 
-void DeviceMonitor::ClearDeviceList()
+const DeviceInfo* DeviceMonitor::GetDeviceInfoBySubDeviceId(LPCTSTR lpcstrDeviceInstanceId) const
 {
-	while(m_aDeviceList.size() > 0)
+	if (lpcstrDeviceInstanceId == NULL)
 	{
-		DeviceInfo* pNode = m_aDeviceList.back();
-		m_aDeviceList.pop_back();
-		if (pNode)
+		return NULL;
+	}
+
+	int count = static_cast<int>(m_aDeviceList.GetCount());
+	for (int i = 0; i < count; i++)
+	{
+		const DeviceInfo* pDevInfo = m_aDeviceList[i];
+		if (pDevInfo->AndroidSubDeviceInstanceId == lpcstrDeviceInstanceId)
 		{
-			delete pNode;
+			return pDevInfo;
 		}
 	}
+	return NULL;
 }
-
 
 void DeviceMonitor::UpdateDeviceList()
 {
-	ClearDeviceList();
+	m_cs.Lock();
+
+	m_aDeviceList.RemoveAll();
 
 	// Prepare to enumerate all the USB devices
     HDEVINFO hDeviceInfo = ::SetupDiGetClassDevs(&GUID_DEVINTERFACE_USB_DEVICE,
@@ -255,6 +268,7 @@ void DeviceMonitor::UpdateDeviceList()
                                      (DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
     if (hDeviceInfo == INVALID_HANDLE_VALUE)
     {
+		m_cs.Unlock();
 		return;
 	}
 
@@ -263,7 +277,7 @@ void DeviceMonitor::UpdateDeviceList()
 	spDevInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
     for(int i = 0; SetupDiEnumDeviceInfo(hDeviceInfo, i, &spDevInfoData); i++)
     {
-        DeviceInfo* pNode = new DeviceInfo();
+        CAutoPtr<DeviceInfo> pNode(new DeviceInfo());
 
 		// Get the device instance ID
 		TCHAR szBuffer[MAX_PATH];
@@ -272,7 +286,6 @@ void DeviceMonitor::UpdateDeviceList()
                                         szBuffer,
                                         MAX_PATH, NULL))
 		{
-			delete pNode;
 			break;
 		}
 		pNode->DeviceInstanceId = szBuffer;
@@ -280,16 +293,19 @@ void DeviceMonitor::UpdateDeviceList()
 
 		if (FilterDevice(pNode))
 		{
-			m_aDeviceList.push_back(pNode);
-			GetAndroidSubDeviceInfo(spDevInfoData.DevInst, pNode);
-		}
-		else
-		{
-			delete pNode;
+			if (!GetAndroidSubDeviceInfo(spDevInfoData.DevInst, pNode))
+			{
+				pNode->InstallState = 4;
+				TRACE(_T("Failed to get android sub device!\n"));
+			}
+			m_aDeviceList.Add(pNode);
+			pNode.Detach();
 		}
     }
 
 	::SetupDiDestroyDeviceInfoList(hDeviceInfo);
+
+	m_cs.Unlock();
 }
 
 /*
@@ -402,12 +418,16 @@ bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevI
 		}
 
 		// Get device info.
-
+		TCHAR szDeviceID[MAX_DEVICE_ID_LEN];
+		if (CM_Get_Device_ID(dnChild, szDeviceID, MAX_DEVICE_ID_LEN, 0) == CR_SUCCESS)
+		{
+			pDevInfo->AndroidSubDeviceInstanceId = szDeviceID;
+		}
 		pDevInfo->DeviceDescription = sDeviceDescription;
 		pDevInfo->AndroidHardwareID = GetDevNodePropertyString(dnChild, CM_DRP_HARDWAREID);
 		pDevInfo->InstallState = _tcstol((LPCTSTR)GetDevNodePropertyString(dnChild, CM_DRP_INSTALL_STATE), NULL, 16);
 
-		TRACE(_T("Android device found!\nDescription: %s\nHardware ID: %s\nDriver install state: 0x%lx\n\n"), (LPCTSTR)pDevInfo->DeviceDescription, (LPCTSTR)pDevInfo->AndroidHardwareID, pDevInfo->InstallState);
+		TRACE(_T("Android device found!\nDevice ID:%s\nDescription: %s\nHardware ID: %s\nDriver install state: 0x%lx\n\n"), szDeviceID, (LPCTSTR)pDevInfo->DeviceDescription, (LPCTSTR)pDevInfo->AndroidHardwareID, pDevInfo->InstallState);
 
 		return true;
 	}

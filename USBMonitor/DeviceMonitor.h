@@ -5,6 +5,7 @@ struct DeviceInfo
 	CString DeviceInstanceId;
 	CString DeviceSerialNumber;
 	CString DeviceDescription;
+	CString AndroidSubDeviceInstanceId;
 	CString AndroidHardwareID;
 
 	/**
@@ -12,18 +13,19 @@ struct DeviceInfo
      * #define CM_INSTALL_STATE_NEEDS_REINSTALL                1
 	 * #define CM_INSTALL_STATE_FAILED_INSTALL                 2
      * #define CM_INSTALL_STATE_FINISH_INSTALL                 3
+	 * Wait for device to get ready                            4
 	 */
 	DWORD InstallState;
 
 	DeviceInfo()
-		: InstallState(0)
+		: InstallState(4)
 	{
 	}
 
 	LPCTSTR GetInstallStateString() const
 	{
-		static LPCTSTR STATES[] = {_T("INSTALLED"), _T("NEEDS_REINSTALL"), _T("FAILED_INSTALL"), _T("FINISH_INSTALL")};
-		ASSERT(InstallState <= 3);
+		static LPCTSTR STATES[] = {_T("INSTALLED"), _T("NEEDS_REINSTALL"), _T("FAILED_INSTALL"), _T("FINISH_INSTALL"), _T("UNKOWN")};
+		ASSERT(InstallState <= 4);
 		return STATES[InstallState];
 	}
 
@@ -84,6 +86,9 @@ public:
 	 */
 	void Unregister();
 
+	// Update the list of current connected devices
+	void UpdateDeviceList();
+
 	/**
 	 * WM_DEVICECHANGE Handler, called to when there is a change to the hardware configuration of a device or the computer.
 	 * @param nEventType An event type, which can be one of the two values:
@@ -107,18 +112,18 @@ public:
 	const DeviceInfo* GetDeviceInfoById(LPCTSTR lpcstrDeviceInstanceId) const;
 
 	/**
+	 * Get the connected device information by the android sub-device instance Id.
+	 * @param szDeviceInstanceId The device instance ID.
+	 */
+	const DeviceInfo* GetDeviceInfoBySubDeviceId(LPCTSTR lpcstrDeviceInstanceId) const;
+
+	/**
 	 * The number of connected devices.
 	 */
-	int GetDeviceCount() const { return static_cast<int>(m_aDeviceList.size()); }
+	int GetDeviceCount() const { return static_cast<int>(m_aDeviceList.GetCount()); }
 private:
 	// Get the index of the observer in the oberver list
 	int FindObserver(DeviceMonitorObserver* pObserver);
-
-	// Clear the list of current connected devices
-	void ClearDeviceList();
-
-	// Update the list of current connected devices
-	void UpdateDeviceList();
 
 	/*
 	 * Check if the USB is supported.
@@ -136,6 +141,8 @@ private:
 	HDEVNOTIFY m_hDevNotify;
 
 	// Connected devices list
-	vector<DeviceInfo*> m_aDeviceList;
+	CAtlArray<CAutoPtr<DeviceInfo>> m_aDeviceList;
+
+	CComCriticalSection m_cs;
 };
 
