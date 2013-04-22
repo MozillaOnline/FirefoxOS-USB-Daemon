@@ -1,0 +1,722 @@
+<h3>Introduction</h3>
+
+<p>Recently, my brother asked me if there was an easy way to create a C++ class that facilitated object orientated threading. I have written many multi-threaded libraries in the past; however, they are all in C. C has always been my language of choice for low-level programming; I use C++ for GUI development. Although there are many excellent examples of object-orientated threading on CodeGuru, none of the classes introduced suited all of my brother's needs and my curiosities. He wanted a thread class that had the following attributes:</p>
+
+<ul>
+<li>It supports both event driven and interval based asynchronous threading.</li>
+<li>It supports both homogeneous and specialized threading.</li>
+<li>It provides a FCFS (First Come First Serve) stack-queue for posting and handling multiple tasks.</li>
+<li>It is portable.</li>
+<li>It is simple to implement.</li>
+</ul>
+
+<p>To support the new class, CThread, other supporting classes were also developed. These classes included the CMutexClass, CEventClass, and CTask classes. The CMutexClass and CEventClass provide resource management while the CTask class is a base class for deriving classes that support homogeneous asynchronous threading.</p>
+
+<h3>What Is Threading?</h3>
+
+<p>Every process has at least one thread of control and every process can perform at least one task at a time. A process that has more than one thread of control defines a multi-threaded process. A multi-threaded process allows multiple tasks to run asynchronously from within the environment of the process.</p>
+
+<h3>Resource Management&mdash;Thread Synchronization</h3>
+
+<p>Because threads within a multi-threaded process share the same resources, OS level control mechanisms are necessary to insure data integrity. A loss of data integrity occurs when one thread is modifying a variable while another thread is attempting to read it or two threads are attempting to modify the same variable at the same time. To prevent this scenario, the OS provides a Mutual Exclusion Object known in short as a <i>mutex</i>. In multi-threaded applications, mutexes, deployed programmatically, prevent multiple threads from accessing a single resource at the same time. When a thread needs access to a resource, it must first acquire a mutex. Once a thread has acquired a mutex, other threads attempting to acquire the same mutex are blocked and placed in a low-CPU usage wait state. Once a thread has completed data access, it releases the corresponding mutex; this allows other threads to acquire it and access the corresponding data.</p>
+
+<p>Poor implementations of mutexes can result in resource starvation, also known as <i>deadlock</i>. Resource starvation occurs when one or more threads are competing for the same resource. Deadlock can also occur if a thread attempts to acquire a mutex twice.</p>
+
+<p><i>Example</i></p>
+<table cellspacing="2" cellpadding="2" border="2">
+<tr valign="top">
+<th>Thread A</th>
+<th>Thread B</th></tr>
+
+<tr><td>Acquires mutex(1) to modify data item 1</td>
+<td>Acquires mutex(2) to modify data item 2</td></tr>
+
+<tr><td>Wants mutex(2) to view data item 2</td>
+<td>Wants mutex(1) to view data item 1</td></tr>
+</table>
+
+<p>Deadlock occurs in the example above because Thread A is blocked trying to acquire mutex(2), which is held by thread B. Thread B is blocked trying to acquire mutex(1) which is blocked by Thread A.</p>
+
+<p>Like mutexes, condition variables, in UNIX, are another form of synchronization mechanism. Condition variables allow threads to rendezvous. They allow one thread to notify another that a change has occurred. In Windows, these are events.</p>
+
+<h3>Operating System Calls</h3>
+
+<p>The following table is a list of the various functions used to implement threading in the CMutexClass, CEventClass, CTask, and CThread classes.</p>
+
+<table cellspacing="2" cellpadding="2" border="2">
+<tr valign="top">
+<th>Function</th>
+<th>OS</th>
+<th>Description</th>
+<th>Class Used in</th></tr>
+
+<tr valign="top"><td><a href="http://msdn2.microsoft.com/en-us/library/ms682453.aspx" target="new">CreateThread</a></td>
+<td>Windows</td>
+<td>Creates a Windows thread</td>
+<td>CThread</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908799/xsh/pthread_create.html" target="new">pthread_create</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Creates a UNIX thread</td>
+<td>CThread</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908799/xsh/pthread_join.html" target="new">pthread_join</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Waits for a UNIX thread to terminate</td>
+<td>CThread</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908799/xsh/pthread_attr_init.html" target="new">pthread_attr_init</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Sets a thread attribute structure to default</td>
+<td>CThread</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908775/xsh/pthread_attr_setstacksize.html" target="new">pthread_attr_setstacksize</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Sets the stack size value of the thread attribute structure</td>
+<td>CThread</td></tr>
+
+<tr valign="top"><td><a href="http://msdn2.microsoft.com/en-us/library/ms687032.aspx" target="new">WaitForSingleObject</a></td>
+<td>Windows</td>
+<td>Waits for an object to be signaled</td>
+<td>CThread, CMutexClass, CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://msdn2.microsoft.com/en-us/library/ms682411.aspx" target="new">CreateMutex</a></td>
+<td>Windows</td>
+<td>Creates a named or unnamed mutex</td>
+<td>CMutexClass</td></tr>
+
+<tr valign="top"><td><a href="http://msdn2.microsoft.com/en-us/library/ms724211.aspx" target="new">CloseHandle</a></td>
+<td>Windows</td>
+<td>Releases resources alloacate to a Windows handle</td>
+<td>CMutexClass, CEventClass, CThread</td></tr>
+
+<tr valign="top"><td><a href="http://msdn2.microsoft.com/en-us/library/ms685066.aspx" target="new">ReleaseMutex</a></td>
+<td>Windows</td>
+<td>Releases a prevously acquired mutex locked by WaitForSingleObject</td>
+<td>CMutexClass, CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/pubs/online/7908799/xsh/pthread_mutexattr_init.html" target="new">pthread_mutexattr_init</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Initializes a mutex attribute structure</td>
+<td>CMutexClass, CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/pubs/online/7908799/xsh/pthread_mutex_init.html" target="new">pthread_mutex_init</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Initializes a mutex using a provided attribute structure</td>
+<td>CMutexClass, CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_lock.html" target="new">pthread_mutex_lock</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Locks a mutex</td>
+<td>CMutexClass, CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_lock.html" target="new">pthread_mutex_unlock</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Unlocks a mutex previously locked by pthread_mutex_lock</td>
+<td>CMutexClass, CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/009695399/functions/pthread_mutex_destroy.html" target="new">pthread_mutex_destroy</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Releases resources allocated to a mutex</td>
+<td>CMutexClass, CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://msdn2.microsoft.com/en-us/library/ms682396.aspx" target="new">CreateEvent</a></td>
+<td>Windows</td>
+<td>Creates a Windows event object</td>
+<td>CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://msdn2.microsoft.com/en-us/library/ms686211.aspx" target="new">SetEvent</a></td>
+<td>Windows</td>
+<td>Sets a Windows event object to signaled</td>
+<td>CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908799/xsh/pthread_cond_signal.html" target="new">pthread_cond_signal</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Unblocks a thread blocked on pthread_cond_wait</td>
+<td>CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908799/xsh/pthread_cond_signal.html" target="new">pthread_cond_wait</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Blocks on a condition variable</td>
+<td>CEventClass</td></tr>
+
+<tr valign="top"><td><a href="http://www.opengroup.org/onlinepubs/007908775/xsh/pthread_cond_init.html" target="new">pthread_cond_init</a></td>
+<td>UNIX - POSIX THREADS</td>
+<td>Initializes a condition variable</td>
+<td>CEventClass</td></tr>
+</table>
+<h3>The CMutexClass Class</h3>
+
+<p>The CMutexClass class encapsulates the system level mutex functions and a mutex synchronization object. Mutex creation occurs during object instantiation with the mutex created as unblocked. The class provides two member functions Lock and Unlock. The Lock member function locks a mutex assigning it to the calling thread. The mutex remains locked to the calling thread until the calling thread releases it using the Unlock member function. Threads that attempt to acquire a locked mutex by calling the Lock member function are blocked, placed into a low CPU consumption wait state until the blocking thread releases the mutex.</p>
+
+<pre>
+<i>Member Functions</i></pre>
+
+<table cellspacing="2" cellpadding="2" border="2">
+<tr valign="top">
+<th>Function</th>
+<th>Description</th></tr>
+
+<tr>
+<td>void CMutexClass()</td>
+<td>Constructor</td></tr>
+
+<tr><td>void Lock()</td>
+<td>Locks mutex object or wait if blocked</td></tr>
+
+<tr><td>void Unlock()</td>
+<td>Unlocks/unblocks a previously blocked mutex</td></tr>
+</table>
+
+<p><i>Example</i></p>
+
+<pre>int g_iStorage = 0;
+CMutexClass MyMutex;
+
+void StoreValue( int *pInt )
+{
+   MyMutex.Lock();           //the gate keeper. only one thread
+                             //allowed in at a time
+
+      g_iStorage = *pInt;    //protected data, critical code section
+
+   MyMutex.Unlock();         //unblocks, allowing another thread to
+                             //access g_iStorage
+}
+</pre>
+
+<h3>The CEventClass Class</h3>
+
+<p>The CEventClass class encapsulates the Windows event functions, a Windows event object, UNIX condition variable functions, and a UNIX condition variable. The functions encorporated into the CEventClass class are SetEvent and CreateEvent under Windows, and phtread_cond_init, pthread_cond_destroy, pthread_cond_signal, and pthread_cond_wait under UNIX. Event synchronization objects are called condition variables under UNIX but for the purpose of simplification, I will refer to both condition variables and event objects as event objects.</p>
+
+<pre>
+<i>Member Functions</i></pre>
+
+<table cellspacing="2" cellpadding="2" border="2">
+<tr valign="top">
+<th>Function</th>
+<th>Description</th></tr>
+
+<tr valign="top"><td>void Set()</td>
+<td>Sets an event state to signaled, notifying blocked thread</td></tr>
+
+<tr valign="top"><td>BOOL&nbsp;Wait()</td>
+<td>Places the calling thread in a blocked state until the event state is set to signaled. Returns TRUE on success, FALSE on failure.</td></tr>
+
+<tr valign="top"><td>void Reset()</td>
+<td>Resets a signaled event to unsignaled</td></tr>
+</table>
+
+<p><i>Example of an event object being used by a recieving thread:</i></p>
+
+<pre>CEventClass event;
+   .
+   .
+//thread code
+   .
+   .
+   while(bContinueRunning)
+   {
+
+      event.Wait();     // wait for an event to occur
+
+      // perform some task
+       .
+       .
+      event.Reset();    // reset the event to un-signaled
+   }
+   .
+   .
+</pre>
+
+<p><i>Example of an event object used by one thread signaling another:</i></p>
+
+<pre>CEventClass event;
+   .
+   .
+// change some data
+   .
+   .
+   event.Set();    // notify thread that an event has occured,
+                   // set event to signaled
+   .
+   .
+</pre>
+<h3>The CTask Class and Non-Specialized Threads</h3>
+
+<p>In many of the thread programming examples that I have seen, data for thread processing is stored in a global variable, protected by a mutex. Instructions for operating on the data are integrated into the thread function. I define this form of threading as <i>Specialized Asynchronous Threading</i> (SAT). Ideally, the data and the corresponding functionality for processing the data should be encapsulated into the same object. I define this form of threading as <i>Homogeneous Asynchronous Threading</i> (HAT). Under HAT, threads are not specialized. For example, there would not be a printing thread and an I/O thread in a HAT solution. Instead, a single thread could perform both types of tasks because the tasks are implemented as complete objects; that is, they contain both the data and the functionality necessary to process the data. The CTask class is a base class that facilitates HAT-based threading.</p>
+
+<pre>typedef enum {
+   TaskStatusNotSubmitted,
+   TaskStatusWaitingOnQueue,
+   TaskStatusBeingProcessed,
+   TaskStatusCompleted } TaskStatus_t;
+
+class CTask
+{
+private:
+   CMutexClass m_mutex;
+   TaskStatus_t m_state;
+   ThreadId_t m_dwThread;
+public:
+   void SetTaskStatus(TaskStatus_t state)
+   {
+      m_mutex.Lock();
+         m_state=state;
+      m_mutex.Unlock();
+   }
+
+   void SetId(ThreadId_t *pid)
+   {
+      memcpy(&amp;m_dwThread,pid,sizeof(ThreadId_t));
+   }
+
+   /**
+    *
+    * Wait
+    * waits for upto timeoutSeconds for a task
+    * to complete
+    *
+   **/
+   BOOL Wait(int timeoutSeconds)
+   {
+      timeoutSeconds = timeoutSeconds * 1000;
+      if( Status() != TaskStatusCompleted &amp;&amp;
+          timeoutSeconds &gt; 0 )
+      {
+         Sleep(100);
+         timeoutSeconds = timeoutSeconds - 100;
+      }
+      if( Status() == TaskStatusCompleted ) return TRUE;
+      return FALSE;
+   }
+
+   /**
+    *
+    * Where
+    * returns current state of a task
+    *
+    **/
+   TaskStatus_t Status()
+   {
+      TaskStatus_t state ;
+
+      m_mutex.Lock();
+        state = m_state;
+      m_mutex.Unlock();
+      return state;
+   }
+
+   void Thread(ThreadId_t *pId)
+   {
+      memcpy(pId,&amp;m_dwThread,sizeof(ThreadId_t));
+   }
+
+   CTask(){m_state=TaskStatusNotSubmitted;
+           memset(&amp;m_dwThread,sizeof(ThreadId_t),0); }
+   ~CTask(){}
+   virtual BOOL Task()=0;
+};
+</pre>
+
+<p><i>Member Functions</i></p>
+
+<table cellspacing="2" cellpadding="2" border="2">
+<tr valign="top">
+<th>Function</th>
+<th>Description</th></tr>
+
+<tr valign="top"><td>m_mutex</td>
+<td>Mutex object synchronization object</td></tr>
+
+<tr><td>virtual BOOL Task()</td>
+<td>Called by a CThread object to perform the task</td></tr>
+
+<tr valign="top"><td>TaskStatus_t Status()</td>
+<td>Determines the tasks status: TaskStatusNotSubmitted, TaskStatusWaitingOnQueue, TaskStatusBeingProcessed, or TaskStatusCompleted</td></tr>
+
+<tr valign="top"><td>void Thread(ThreadId_t *pid)</td>
+<td>Returns the thread ID of the processing thread</td></tr>
+
+<tr valign="top"><td>BOOL Wait(int iTimeInSeconds)</td>
+<td>Places a calling thread into a wait state until the task completes or iTimeInSeconds elapses. If a task does not complete within iTimeInSeconds, FALSE is returned; otherwise, TRUE is returned</td></tr>
+</table>
+
+<p>I have not defined the CThread class; however, its definition is not necessary to understand how it interacts with a CTask object. The list below presents an outline of how the two object types interact.</p>
+
+<h4>The proceedure for processing a CTask object</h4>
+
+<ul>
+<li>A CTask object is passed to a CThread object to be processed.</li>
+<li>The CThread object places the CTask object in a First Come First Served Queue.</li>
+<li>The CThread object sets the CTask object's state to <i>TaskStatusWaitingOnQueue</i>.</li>
+<li>The CThread object pops the CTask object off of the wait queue.</li>
+<li>The CThread object changes the CTask object's state to <i>TaskStatusBeingProcessed</i>.</li>
+<li>The CThread object calls CTask object's member function "task" to perform the task.</li>
+<li>The CThread object changes the CTask object's state to <i>TaskStateCompleted</i>.</li>
+</ul>
+
+<h3>The CThread Class, Putting It All Together</h3>
+
+<p><i>Member Functions</i></p>
+
+<table cellspacing="2" cellpadding="2" border="2">
+<tr valign="top">
+<th>Function</th>
+<th>Description</th></tr>
+
+<tr valign="top"><td>void CThread()</td>
+<td>Constructor initializes object data and starts the thread.</td></tr>
+
+<tr valign="top"><td>void ~CThread()</td>
+<td>Terminates thread if it is running and frees resources.</td></tr>
+
+<tr valign="top"><td>BOOL Event(LPVOID lpvData)</td>
+<td>Places a data block on the event stack/queue and notifies the object's thread that data is waiting to be processed.</td></tr>
+
+<tr valign="top"><td>BOOL Event(CTask *pTask)</td>
+<td>Places a CTask object on the event stack/queue and notifies the object's thread that a task is waiting to be performed.</td></tr>
+
+<tr valign="top"><td>int GetEventsPending()</td>
+<td>Returns the number of events waiting on the event stack.</td></tr>
+
+<tr valign="top"><td>ThreadId_t GetId()</td>
+<td>Returns the object's thread ID.</td></tr>
+
+<tr valign="top"><td>DWORD GetErrorFlags()</td>
+<td>Returns the object's error flags. If there are no errors, a value of 0 is returned (NO_ERRORS). If there are errors, one or more of the following flags will be set: MUTEX_CREATION (a mutex object could not be created), EVENT_CREATION (an event object could not be created), THREAD_CREATION (the object's thread could not be created), ILLEGAL_USE_OF_EVENT (the Event member function was called for a interval based thread).</td></tr>
+
+<tr valign="top"><td>BOOL PingThread(DWORD dwTimeoutMilli)</td>
+<td>Determines whether the object's thread is running. Returns TRUE if the thread is running, FALSE if it is not. Timeout is in seconds.</td></tr>
+
+<tr valign="top"><td>SetPriority(DWORD dwPriority)</td>
+<td>Sets thread's priority, Windows only.</td></tr>
+
+<tr valign="top"><td>BOOL Start()</td>
+<td>Starts the object's thread.</td></tr>
+
+<tr valign="top"><td>BOOL Stop()</td>
+<td>Stops the object's thread.</td></tr>
+
+<tr valign="top"><td>void SetIdle(DWORD dwIdle)</td>
+<td>Changes a thread's idle time in milliseconds, used with interval-based threading.</td></tr>
+
+<tr valign="top"><td>SetThreadType(ThreadType_t typ,DWORD dwIdle)</td>
+<td>Changes the thread type between ThreadTypeEventDriven and ThreadTypeIntervalDriven.</td></tr>
+
+<tr valign="top"><td>m_mutex</td>
+<td>A mutex object used for synchronization, see CMutexClass.</td></tr>
+
+<tr valign="top"><td>ThreadState_t ThreadState()</td>
+<td>Returns the state of a thread: ThreadStateBusy (the thread is processing an event), ThreadStateWaiting (the thread is waiting for a new event), ThreadStateDown (the thread is not running), ThreadStateShutingDown (the thread is in the process of shutting down).</td></tr>
+</table>
+
+<p>Now that you have learned the supporting classes, it's time to look at the main class, the CThread class&mdash;the workhorse. The CThread class supports two types of threads, Event Driven and Interval Driven. An Event Driven thread is a thread that remains in a wait state, blocked on an event object, until the event object's state changes from unsignaled to signaled. A new event occurs when a different thread places a task in a CThread object's queue and notifies the object's thread by setting its event object to signaled. Once signaled, the thread wakes up and pops tasks from its event queue until the queue is empty.</p>
+
+<p>The CThread object invokes the OnTask member function for each task. Tasks are processed in a First Come First Serve (FCFS) order. Hence, the first task placed in a CThread object's queue is processed first, followed by the second and so on. A mutex object synchronizes queue access, allowing additional events to be placed on the queue while the thread is processing older ones. Once the queue is empty, the thread resets the event object to unsignaled and returns to waiting for an event object. The CThread class supports two types of Event Driven threads: specialized in unspecialized threads, see CTask.</p>
+<p>To implement a specialized thread, a new class must be derived from the CThread class. The derived class should contain a redefined implementation of OnTask to process the object's data types.</p>
+
+<p><i>Example</i></p>
+
+<pre>#include "Thread.h"
+class CIncrementThread : public CThread
+{
+public:
+   int counter;
+
+   virtual BOOL OnTask( LPVOID lpv )
+   {
+      ThreadId_t id;
+
+      GetId(&amp;id);
+      if( lpv )
+      {
+         int *pInt = (int *)lpv;
+
+         //don't use cout here, output could be broken up due to
+         //threading
+         printf("\tthread(%ld, counter+%d=%d, counter incremented\n",
+                id,*pInt,(counter+=*pInt));
+      }
+      return TRUE;
+   }
+
+   virtual BOOL OnTask()
+   {
+      ThreadId_t id;
+
+      GetId(&amp;id);
+      //don't use cout here, output could be broken up due to
+      //threading
+      m_mutex.Lock();    // protect the counter variable
+         printf("\tthread(%ld, counter++= %d, counter incremented)\n",
+                id,(++counter));
+      m_mutex.Unlock();
+
+
+      return TRUE;
+   }
+
+      int GetValue()
+      {
+         int counterValue = 0;
+         m_mutex.Lock();    // protect the counter variable
+            counterValue = counter;
+         m_mutex.Unlock();
+         return counter;
+      }
+
+      void Reset()
+      {
+         m_mutex.Lock();
+             counter = 0;
+          m_mutex.Unlock();
+      }
+
+   CIncrementThread(){counter=0;}
+   ~CIncrementThread(){}
+};
+
+int main( int argc,
+          char *argv[])
+{
+   // object allocated and thread started
+   CIncrementThread MyThread;
+   int two=2;
+
+   while( MyThread.GetValue() &lt; 20 )
+   {
+      MyThread.Event();    // increment value by one
+      Sleep(100);          // pauses the root thread for 100
+                           // milliseconds
+   }
+
+   MyThread.Reset();
+   while( MyThread.GetValue() &lt; 40 )
+   {
+      MyThread.Event(&amp;two);
+      Sleep(100);
+   }
+}
+
+
+<b>OUTPUT:</b>
+        thread(5220, counter++= 1, counter incremented)
+        thread(5220, counter++= 2, counter incremented)
+        thread(5220, counter++= 3, counter incremented)
+        thread(5220, counter++= 4, counter incremented)
+        thread(5220, counter++= 5, counter incremented)
+        thread(5220, counter++= 6, counter incremented)
+        thread(5220, counter++= 7, counter incremented)
+        thread(5220, counter++= 8, counter incremented)
+        thread(5220, counter++= 9, counter incremented)
+        thread(5220, counter++= 10, counter incremented)
+        thread(5220, counter++= 11, counter incremented)
+        thread(5220, counter++= 12, counter incremented)
+        thread(5220, counter++= 13, counter incremented)
+        thread(5220, counter++= 14, counter incremented)
+        thread(5220, counter++= 15, counter incremented)
+        thread(5220, counter++= 16, counter incremented)
+        thread(5220, counter++= 17, counter incremented)
+        thread(5220, counter++= 18, counter incremented)
+        thread(5220, counter++= 19, counter incremented)
+        thread(5220, counter++= 20, counter incremented)
+        thread(5220, counter+2=2, counter incremented
+        thread(5220, counter+2=4, counter incremented
+        thread(5220, counter+2=6, counter incremented
+        thread(5220, counter+2=8, counter incremented
+        thread(5220, counter+2=10, counter incremented
+        thread(5220, counter+2=12, counter incremented
+        thread(5220, counter+2=14, counter incremented
+        thread(5220, counter+2=16, counter incremented
+        thread(5220, counter+2=18, counter incremented
+        thread(5220, counter+2=20, counter incremented
+        thread(5220, counter+2=22, counter incremented
+        thread(5220, counter+2=24, counter incremented
+        thread(5220, counter+2=26, counter incremented
+        thread(5220, counter+2=28, counter incremented
+        thread(5220, counter+2=30, counter incremented
+        thread(5220, counter+2=32, counter incremented
+        thread(5220, counter+2=34, counter incremented
+        thread(5220, counter+2=36, counter incremented
+        thread(5220, counter+2=38, counter incremented
+        thread(5220, counter+2=40, counter incremented
+</pre>
+
+<p>In the example above, I have derived a CIncrementThread class from a CThread class. In the class definition, I redefined both the OnTask() and OnTask(LPVOID) virtual member functions. In the OnTask() implementation, I add one to the objects counter variable. The other OnTask member function takes a pointer to an integer value, and adds the pointers value to the counter member variable. This example illustrates the two types of events that a thread can process. Because the counter variable has the potential of being accessed by more than one thread, I use the CThread::m_mutex object to insure that it is only accessed by one thread.</p>
+
+<p>HAT (Homogeneous Asynchronous Threading) threads are implemented using both the CThread and the CTask classes.</p>
+
+<p><i>Example</i></p>
+
+<pre>#include "Thread.h"
+class CTaskIncrementer: public CTask
+{
+private:
+   int counter;
+   int incr;
+public:
+   void SetIncr(int iValue) 
+   {
+      m_mutex.Lock();
+         incr = iValue;
+      m_mutex.Unlock();
+   }
+
+   int GetIncrementValue()
+   {
+      int incrValue;
+      m_mutex.Lock();
+         incrValue=incr;
+      m_mutex.Unlock();
+         return incrValue;
+   }
+
+   int GetValue()
+   {
+      int counterValue = 0;
+      m_mutex.Lock();    // protect the counter variable
+         counterValue = counter;
+      m_mutex.Unlock();
+         return counter;
+   }
+
+   BOOL Task()
+   {
+      ThreadId_t id;
+
+      Thread(&amp;id);
+
+      m_mutex.Lock();
+         printf("\tthread(%ld, counter+%d=%d, counter incremented\n",
+                id,incr,(counter+=incr));
+      m_mutex.Unlock();
+         return TRUE;
+   }
+   CTaskIncrementer(){counter=0;}
+   ~CTaskIncrementer(){}
+};
+
+int
+main(int argc,
+   char *argv[])
+{
+   CTaskIncrementer incr;
+   CThread thr;
+
+   incr.SetIncr(2);
+   while( incr.GetValue() &lt; 40 ) thr.Event(&amp;incr);
+}
+
+<b>OUTPUT:</b>
+       thread(5700, counter+2=2, counter incremented
+       thread(5700, counter+2=4, counter incremented
+       thread(5700, counter+2=6, counter incremented
+       thread(5700, counter+2=8, counter incremented
+       thread(5700, counter+2=10, counter incremented
+       thread(5700, counter+2=12, counter incremented
+       thread(5700, counter+2=14, counter incremented
+       thread(5700, counter+2=16, counter incremented
+       thread(5700, counter+2=18, counter incremented
+       thread(5700, counter+2=20, counter incremented
+       thread(5700, counter+2=22, counter incremented
+       thread(5700, counter+2=24, counter incremented
+       thread(5700, counter+2=26, counter incremented
+       thread(5700, counter+2=28, counter incremented
+       thread(5700, counter+2=30, counter incremented
+       thread(5700, counter+2=32, counter incremented
+       thread(5700, counter+2=34, counter incremented
+       thread(5700, counter+2=36, counter incremented
+       thread(5700, counter+2=38, counter incremented
+       thread(5700, counter+2=40, counter incremented
+</pre>
+<p>An Interval Driven thread is a thread that wakes up at predefined intervals, checks to see whether there is a change in the environment, processes the changes in the environment, sleeps for the next interval, and then wakes up and does it all over again. To implement a interval driven thread, you derive a CThread class that redefines OnTask(LPVOID). Once the thread has been instantiated, you call the SetThreadType member function with the parameter ThreadTypeIntervalDriven and an interval in milliseconds.</p>
+
+<p><i>Example</i></p>
+
+<pre>#include "Thread.h"
+
+class CIncrementThread : public CThread
+{
+public:
+   int counter;
+
+   virtual BOOL OnTask()
+   {
+      ThreadId_t id;
+
+      GetId(&amp;id);
+      //don't use cout here, output could be broken up due to
+      //threading
+      m_mutex.Lock();    // protect the counter variable
+         printf("\tthread(%ld, counter++= %d, counter incremented)\n",
+                id,(++counter));
+      m_mutex.Unlock();
+
+
+      return TRUE;
+   }
+
+   int GetValue()
+   {
+      int counterValue = 0;
+      m_mutex.Lock();    // protect the counter variable
+         counterValue = counter;
+      m_mutex.Unlock();
+      return counter;
+   }
+
+   void Reset()
+        {
+            m_mutex.Lock();
+               counter = 0;
+            m_mutex.Unlock();
+        }
+
+   CIncrementThread(){counter=0;}
+   ~CIncrementThread(){}
+};
+
+int
+main( int argc, 
+    char *argv[] )
+{
+   CIncrementThread thr;
+
+   thr-&gt;SetThreadType(ThreadTypeIntervalDriven,100);
+   Sleep(500);
+
+}
+
+<b>OUTPUT:</b>
+        thread(6104, counter++= 12, counter incremented)
+        thread(6104, counter++= 13, counter incremented)
+        thread(6104, counter++= 14, counter incremented)
+        thread(6104, counter++= 15, counter incremented)
+        thread(6104, counter++= 16, counter incremented)
+</pre>
+
+<h3>Conclusion</h3>
+
+<p>There you have it, a full function thread object. I have tested on Linux and the classes work fine. I have yet to test on SunOS or any of the other UNIX platforms that these classes should support. When compiling on Windows, be sure to specify /Mt or /Mtd for code generation; this identifies your application as a multi-threaded application. For Linux, the following make file works:</p>
+
+<pre>
+CC=g++
+LIBS=-lpthread -lrt
+CFLAGS=-DSUNOS -DNANO_SECOND_SLEEP
+
+OBJS=Thread.cpp EventClass.cpp MutexClass.cpp main.cpp
+
+
+EXECS = thread
+
+all: $(EXECS)
+
+thread: $(OBJS)
+    $(CC) $(CFLAGS) -o thread $(OBJS) $(LIBS)
+
+
+clean:; rm -f *.o $(EXECS)
+
+
+</pre>

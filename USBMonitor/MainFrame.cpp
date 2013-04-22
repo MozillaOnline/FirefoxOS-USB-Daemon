@@ -1,18 +1,25 @@
 #include "StdAfx.h"
 #include "MainFrame.h"
-#include "DeviceMonitor.h"
 
 MainFrame::MainFrame(void)
 	: m_pDeviceStatusLabel(NULL)
 	, m_pDeviceList(NULL)
 {
 	m_pDeviceMonitor = new DeviceMonitor();
+	m_pDriverInstaller = new DriverInstaller(this);
 }
-
 
 MainFrame::~MainFrame(void)
 {
 	delete m_pDeviceMonitor;
+	delete m_pDriverInstaller;
+}
+
+void MainFrame::ExecuteOnUIThread(MainThreadFunc func)
+{
+	CAutoPtr<MainThreadFunc> pFunc(new MainThreadFunc(func));
+	m_executeOnMainThreadFunctions.Add(pFunc);
+	::PostMessage(GetHWND(), WM_EXECUTE_ON_MAIN_THREAD, reinterpret_cast<WPARAM>((MainThreadFunc *)pFunc), NULL);
 }
 
 void MainFrame::OnPrepare(TNotifyUI& msg)
@@ -98,6 +105,12 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 			OnTimer(wParam);
 		}
 		break;
+	case WM_EXECUTE_ON_MAIN_THREAD:
+		{
+			MainThreadFunc* pFunc = reinterpret_cast<MainThreadFunc *>(wParam);
+			OnExecuteOnMainThread(pFunc);
+		}
+		break;
 	default:						bHandled = FALSE; break;
 	}
 	return 0;
@@ -112,6 +125,8 @@ void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 	CString text;
 	text.Format(_T("%s connected"), DeviceInfo::GetSerialNumber(lpstrDevId));
 	m_pDeviceStatusLabel->SetText(text);
+
+	m_pDriverInstaller->Start(DriverInstaller::DPINST, _T("drivers\\zte_google_usb_driver"));
 }
 
 // A supported device has been removed.
@@ -152,6 +167,11 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 	}
 	
 	return strText;
+}
+
+void MainFrame::OnDriverInstalled(bool success)
+{
+	::MessageBox(GetHWND(), _T("Driver Installed!"), _T("Driver Installed"), MB_OK);
 }
 
 void MainFrame::SetupWindowRegion()
@@ -246,4 +266,10 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 		UpdateDeviceList();
 		::KillTimer(GetHWND(), DEVICE_LIST_DELAY_UPDATE_TIMER_ID);
 	}
+}
+
+void MainFrame::OnExecuteOnMainThread(MainThreadFunc* pFunc)
+{
+	ASSERT(pFunc);
+	(*pFunc)();
 }

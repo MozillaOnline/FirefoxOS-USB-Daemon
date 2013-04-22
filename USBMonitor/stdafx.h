@@ -28,6 +28,9 @@
 // CM_Get_Child, CM_Get_Sibling, CM_Get_DevNode_Registry_Property
 #include <Cfgmgr32.h>
 
+// ShellExecuteEx
+#include <Shellapi.h>
+
 // ATL base
 #include <atlcore.h>
 // String conversion functions, such as A2T, T2A
@@ -39,6 +42,9 @@
 
 // std::ifstream
 #include <fstream>
+
+// std::function
+#include <functional>
 
 // Debugging macros, such ASSERT, TRACE...
 #include "debug.h"

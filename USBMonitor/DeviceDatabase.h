@@ -5,6 +5,7 @@ struct DriverInfo
 	CString DeviceInstanceId;
 	CString AndroidHardwareID;
 	CString DriverDownlaodURL;
+	bool ShowWindow;
 };
 
 /**
@@ -13,6 +14,9 @@ struct DriverInfo
 class DeviceDatabase
 {
 public:
+	/**
+	 * Get a database instance and create once if not exists.
+	 */
 	static DeviceDatabase* Instance() 
 	{
 		if (s_pInstance == NULL)
@@ -21,6 +25,17 @@ public:
 			s_pInstance->Load(CPaintManagerUI::GetInstancePath() + _T("drivers\\driver_list.json"));
 		}
 		return s_pInstance;
+	}
+
+	/**
+	 * Free the Device database.
+	 */
+	static void Close()
+	{
+		if (s_pInstance)
+		{
+			delete s_pInstance;
+		}
 	}
 
 	/**

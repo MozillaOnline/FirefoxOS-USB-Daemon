@@ -47,6 +47,7 @@ bool DeviceDatabase::Load(LPCTSTR strFileName)
 		pDriverInfo->DeviceInstanceId = UTF8ToCString(device["device_instance_id"].asCString());
 		pDriverInfo->AndroidHardwareID = UTF8ToCString(device["android_hardware_id"].asCString());
 		pDriverInfo->DriverDownlaodURL = UTF8ToCString(device["driver_download_url"].asCString());
+		pDriverInfo->ShowWindow = device["driver_download_url"].asBool();
 		m_driverMap[pDriverInfo->DeviceInstanceId] = pDriverInfo;
 	}
 	return true;

@@ -52,7 +52,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\jsoncpp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\jsoncpp\include;Thread;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -69,7 +69,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\jsoncpp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\jsoncpp\include;Thread;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -89,21 +89,31 @@
     <ClInclude Include="debug.h" />
     <ClInclude Include="DeviceDatabase.h" />
     <ClInclude Include="DeviceMonitor.h" />
+    <ClInclude Include="DriverInstaller.h" />
+    <ClInclude Include="DriverInstallerThread.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="App.h" />
+    <ClInclude Include="Thread\EventClass.h" />
+    <ClInclude Include="Thread\MutexClass.h" />
+    <ClInclude Include="Thread\Thread.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DeviceDatabase.cpp" />
     <ClCompile Include="DeviceMonitor.cpp" />
+    <ClCompile Include="DriverInstaller.cpp" />
+    <ClCompile Include="DriverInstallerThread.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="App.cpp" />
+    <ClCompile Include="Thread\EventClass.cpp" />
+    <ClCompile Include="Thread\MutexClass.cpp" />
+    <ClCompile Include="Thread\Thread.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="USBMonitor.rc" />

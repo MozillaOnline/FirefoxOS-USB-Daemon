@@ -1,22 +1,29 @@
 #pragma once
 
 #include "DeviceMonitor.h"
+#include "DriverInstaller.h"
+
+typedef std::function<void()> MainThreadFunc;
 
 class MainFrame
 	: public WindowImplBase
 	, public DeviceMonitorObserver
 	, public IListCallbackUI
+	, public DriverInstallerCallback
 {
 public:
 	MainFrame(void);
 	~MainFrame(void);
 
-	//
-	// Overrides WindowImplBase
-	//
+	void ExecuteOnUIThread(MainThreadFunc func);
+public:
 
 	// Called after the window shows
 	void OnPrepare(TNotifyUI& msg);
+
+	//
+	// Overrides WindowImplBase
+	//
 
 	// Called before the window shows
 	virtual void InitWindow();
@@ -63,7 +70,15 @@ public:
 	//
 	virtual LPCTSTR GetItemText(CControlUI* pList, int iItem, int iSubItem);
 
+public:
+	// 
+	// Overrides DriverInstallerCallback
+	//
+	virtual void OnDriverInstalled(bool success) override;
+
 private:
+	static MainFrame const s_instance;
+
 	// Change the shape of window to that of the background
 	void SetupWindowRegion();
 
@@ -73,11 +88,19 @@ private:
 	// WM_TIMER Handler
 	void OnTimer(UINT_PTR nIDEvent);
 
+	// WM_EXECUTE_ON_MAIN_THREAD Handler
+	void OnExecuteOnMainThread(MainThreadFunc* pFunc);
+
 	DeviceMonitor* m_pDeviceMonitor;
 
 	CLabelUI* m_pDeviceStatusLabel;
 	CListUI* m_pDeviceList;
 
+	CAtlArray<CAutoPtr<MainThreadFunc>> m_executeOnMainThreadFunctions;
+
 	static const UINT_PTR DEVICE_LIST_DELAY_UPDATE_TIMER_ID = 0;
+	static const UINT WM_EXECUTE_ON_MAIN_THREAD = WM_USER + 200;
+
+	DriverInstaller* m_pDriverInstaller;
 };
 

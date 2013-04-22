@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "App.h"
 #include "MainFrame.h"
+#include "DeviceDatabase.h"
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
@@ -28,6 +29,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	mainFrame.ShowWindow();
 
 	CPaintManagerUI::MessageLoop();
+
+	DeviceDatabase::Close();
 
 	::CoUninitialize();
 	return 0;
@@ -73,4 +76,26 @@ CString UTF8ToCString(const char* szUTF8)
 		delete[] wstr;
 	}
 	return str;
+}
+
+typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
+BOOL Is64BitWindows()
+{
+#if defined(_WIN64)
+    return TRUE;  // 64-bit programs run only on Win64
+#elif defined(_WIN32)
+    // 32-bit programs run on both 32-bit and 64-bit Windows
+    // so must sniff
+    BOOL f64 = FALSE;
+LPFN_ISWOW64PROCESS fnIsWow64Process;
+
+fnIsWow64Process = (LPFN_ISWOW64PROCESS) GetProcAddress(GetModuleHandle(_T("kernel32")),"IsWow64Process");
+if(NULL != fnIsWow64Process)
+    {
+        return fnIsWow64Process(GetCurrentProcess(),&f64) && f64;
+    }
+return FALSE;
+#else
+    return FALSE; // Win64 does not support Win16
+#endif
 }
