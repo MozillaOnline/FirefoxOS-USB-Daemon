@@ -145,8 +145,6 @@ void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 	CString text;
 	text.Format(_T("%s connected"), DeviceInfo::GetSerialNumber(lpstrDevId));
 	m_pDeviceStatusLabel->SetText(text);
-
-	m_pDriverInstaller->Start(DriverInstaller::DPINST, _T("drivers\\zte_google_usb_driver"));
 }
 
 // A supported device has been removed.
@@ -163,10 +161,13 @@ void MainFrame::OnDeviceRemoved(LPCTSTR lpstrDevId)
 LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 {
 	LPCTSTR strText = _T("");
+	
+	m_pDeviceMonitor->Lock();
 
 	const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(iItem);
 	if (pInfo == NULL)
 	{
+		m_pDeviceMonitor->Unlock();
 		return strText;
 	}
 
@@ -175,6 +176,7 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 	case 0:
 		{
 			strText = pInfo->DeviceSerialNumber;
+			m_pDeviceMonitor->Unlock();
 		}
 		break;
 	case 1:
@@ -182,10 +184,15 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 			strText = pInfo->GetInstallStateString();
 		}
 		break;
-	default:
-		return _T("Unknown");
+	default:	
+		{
+			strText = _T("Unknown");
+		}
+		break;
 	}
-	
+
+	m_pDeviceMonitor->Unlock();
+
 	return strText;
 }
 
@@ -204,9 +211,6 @@ void MainFrame::OnStringReceived(const char* utf8String)
 	{
 		// do noting.
 	}
-
-	// Send received string back
-	m_pSocketService->SendString(strData);
 
 	// Deal with backspace
 	if (strData == _T("\b"))
@@ -414,7 +418,9 @@ void MainFrame::HandleSocketCommand(const CString& strCmdLine)
 	else
 	{
 		// Invalid command
-		HandleCommandError(_T("Invalid command"));
+		CString message;
+		message.Format(_T("Invalid command: %s"), cmd); 
+		HandleCommandError(message);
 	}
 
 
@@ -450,12 +456,47 @@ void MainFrame::HandleCommandInfo()
 
 void MainFrame::HandleCommandInstall(const CString& strDevId, const CString& strPath)
 {
+	//m_pDriverInstaller->Start(DriverInstaller::DPINST, _T("drivers\\zte_google_usb_driver"));
 	HandleCommandError(_T("Not implemented"));
 }
 
 void MainFrame::HandleCommandList(const CString& strDevId)
 {
-	HandleCommandError(_T("Not implemented"));
+	Json::Value jsonResult;
+	jsonResult["type"] = "result";
+	Json::Value jsonData(Json::arrayValue);
+
+	Json::arrayValue;
+	int count = m_pDeviceMonitor->GetDeviceCount();
+	m_pDeviceMonitor->Lock();
+	for (int i = 0; i < count; i++)
+	{
+		const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(i);
+		Json::Value jsonInfo;
+		jsonInfo["deviceInstanceId"] = (LPCSTR)CStringToUTF8String(pInfo->DeviceInstanceId);
+		CStringA state;
+		switch (pInfo->InstallState)
+		{
+		case CM_INSTALL_STATE_INSTALLED:
+		case CM_INSTALL_STATE_FINISH_INSTALL:
+			state = "installed";
+			break;
+		case CM_INSTALL_STATE_NEEDS_REINSTALL: // Fall through
+		case CM_INSTALL_STATE_FAILED_INSTALL:
+			state = "failed";
+			break;
+		default:
+			state = "notInstalled";
+			break;
+		}
+		jsonInfo["state"] = (LPCSTR)state;
+		jsonData.append(jsonInfo);
+	}
+	m_pDeviceMonitor->Unlock();
+	jsonResult["data"] = jsonData;
+	CStringA message = jsonResult.toStyledString().c_str();
+	message += "\n";
+	m_pSocketService->SendString(message);
 }
 
 void MainFrame::HandleCommandShutdown()

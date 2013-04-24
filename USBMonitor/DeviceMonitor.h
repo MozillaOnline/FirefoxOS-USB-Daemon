@@ -66,6 +66,16 @@ public:
 	DeviceMonitor(void);
 	~DeviceMonitor(void);
 
+	void Lock()
+	{
+		m_cs.Lock();
+	}
+
+	void Unlock()
+	{
+		m_cs.Unlock();
+	}
+
 	/**
 	 * Add an oberver to monitor the device change
 	 */
