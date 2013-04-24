@@ -15,6 +15,7 @@ DriverInstaller::DriverInstaller(DriverInstallerCallback *pCallback)
 
 DriverInstaller::~DriverInstaller(void)
 {
+	m_cs.Term();
 	delete m_pThread;
 }
 

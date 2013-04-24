@@ -2,6 +2,7 @@
 
 #include "DeviceMonitor.h"
 #include "DriverInstaller.h"
+#include "SocketService.h"
 
 typedef std::function<void()> MainThreadFunc;
 
@@ -10,10 +11,13 @@ class MainFrame
 	, public DeviceMonitorObserver
 	, public IListCallbackUI
 	, public DriverInstallerCallback
+	, public SocketServiceCallback
 {
 public:
 	MainFrame(void);
 	~MainFrame(void);
+
+	static MainFrame* GetInstance();
 
 	void ExecuteOnUIThread(MainThreadFunc func);
 public:
@@ -26,29 +30,29 @@ public:
 	//
 
 	// Called before the window shows
-	virtual void InitWindow();
-	virtual void OnFinalMessage( HWND hWnd );
-	virtual void OnClick(TNotifyUI& msg);
-	virtual void Notify(TNotifyUI& msg);
+	virtual void InitWindow() override;
+	virtual void OnFinalMessage( HWND hWnd ) override;
+	virtual void OnClick(TNotifyUI& msg) override;
+	virtual void Notify(TNotifyUI& msg) override;
 
-	virtual LRESULT OnSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
-	virtual LRESULT HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
+	virtual LRESULT OnSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled) override;
+	virtual LRESULT HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled) override;
 protected:
 	//
 	// Overrides WindowImplBase
 	//
 
-	virtual CDuiString GetSkinFile()
+	virtual CDuiString GetSkinFile() override
 	{
 		return _T("main_frame.xml");
 	}
 
-	virtual CDuiString GetSkinFolder()
+	virtual CDuiString GetSkinFolder() override
 	{
 		return  _T("skin\\");
 	}
 	
-	virtual LPCTSTR GetWindowClassName(void) const
+	virtual LPCTSTR GetWindowClassName(void) const override
 	{
 		return _T("FirefoxOS-USB-Daemon");
 	}
@@ -59,16 +63,16 @@ public:
 	//
 
 	// A supported device has been inserted.
-	virtual void OnDeviceInserted(LPCTSTR lpstrDevId);
+	virtual void OnDeviceInserted(LPCTSTR lpstrDevId) override;
 
 	// A supported device has been removed.
-	virtual void OnDeviceRemoved(LPCTSTR lpstrDevId);
+	virtual void OnDeviceRemoved(LPCTSTR lpstrDevId) override;
 
 public:
 	// 
 	// Overrides IListCallbackUI
 	//
-	virtual LPCTSTR GetItemText(CControlUI* pList, int iItem, int iSubItem);
+	virtual LPCTSTR GetItemText(CControlUI* pList, int iItem, int iSubItem) override;
 
 public:
 	// 
@@ -76,8 +80,13 @@ public:
 	//
 	virtual void OnDriverInstalled(bool success) override;
 
+public:
+	//
+	// Overrides SocketServiceCallback
+	//
+	virtual void OnStringReceived(const char* utf8String) override;
 private:
-	static MainFrame const s_instance;
+	static MainFrame s_instance;
 
 	// Change the shape of window to that of the background
 	void SetupWindowRegion();
@@ -89,7 +98,15 @@ private:
 	void OnTimer(UINT_PTR nIDEvent);
 
 	// WM_EXECUTE_ON_MAIN_THREAD Handler
-	void OnExecuteOnMainThread(MainThreadFunc* pFunc);
+	void OnExecuteOnMainThread();
+
+	void HandleSocketCommand(const CString& strCmdLine);
+	void HandleCommandInfo();
+	void HandleCommandInstall(const CString& strDevId, const CString& strPath);
+	void HandleCommandList(const CString& strDevId);
+	void HandleCommandShutdown();
+	void HandleCommandMessage();
+	void HandleCommandError(const CString& strError);
 
 	DeviceMonitor* m_pDeviceMonitor;
 
@@ -102,5 +119,12 @@ private:
 	static const UINT WM_EXECUTE_ON_MAIN_THREAD = WM_USER + 200;
 
 	DriverInstaller* m_pDriverInstaller;
+	
+	CComCriticalSection m_csExecuteOnUIThread;
+
+	SocketService* m_pSocketService;
+	CStringA m_strSocketCmdBuffer;
+	CComCriticalSection m_csSocket;
+	CAtlArray<CStringA> m_pendingNotifications;
 };
 

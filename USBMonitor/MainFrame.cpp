@@ -1,25 +1,42 @@
 #include "StdAfx.h"
 #include "MainFrame.h"
+#include "App.h"
 
 MainFrame::MainFrame(void)
 	: m_pDeviceStatusLabel(NULL)
 	, m_pDeviceList(NULL)
+	, m_pSocketService(NULL)
 {
 	m_pDeviceMonitor = new DeviceMonitor();
 	m_pDriverInstaller = new DriverInstaller(this);
+	m_pSocketService = new SocketService(this);
+	m_csExecuteOnUIThread.Init();
+	m_csSocket.Init();
 }
 
 MainFrame::~MainFrame(void)
 {
+	m_csSocket.Term();
+	m_csExecuteOnUIThread.Term();
 	delete m_pDeviceMonitor;
 	delete m_pDriverInstaller;
+	delete m_pSocketService;
 }
+
+MainFrame* MainFrame::GetInstance()
+{
+	return &s_instance;
+}
+
+MainFrame MainFrame::s_instance;
 
 void MainFrame::ExecuteOnUIThread(MainThreadFunc func)
 {
 	CAutoPtr<MainThreadFunc> pFunc(new MainThreadFunc(func));
+	m_csExecuteOnUIThread.Lock();
 	m_executeOnMainThreadFunctions.Add(pFunc);
-	::PostMessage(GetHWND(), WM_EXECUTE_ON_MAIN_THREAD, reinterpret_cast<WPARAM>((MainThreadFunc *)pFunc), NULL);
+	m_csExecuteOnUIThread.Unlock();
+	::PostMessage(GetHWND(), WM_EXECUTE_ON_MAIN_THREAD, NULL, NULL);
 }
 
 void MainFrame::OnPrepare(TNotifyUI& msg)
@@ -37,6 +54,8 @@ void MainFrame::OnPrepare(TNotifyUI& msg)
 	m_pDeviceMonitor->AddObserver(this);
 
 	UpdateDeviceList();
+
+	m_pSocketService->Start();
 }
 
 void MainFrame::InitWindow()
@@ -57,6 +76,8 @@ void MainFrame::OnFinalMessage(HWND hWnd)
 	
 	// Unregister the device change notification.
 	m_pDeviceMonitor->Unregister();
+
+	m_pSocketService->Stop();
 
 	::PostQuitMessage(0);
 }
@@ -107,8 +128,7 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 		break;
 	case WM_EXECUTE_ON_MAIN_THREAD:
 		{
-			MainThreadFunc* pFunc = reinterpret_cast<MainThreadFunc *>(wParam);
-			OnExecuteOnMainThread(pFunc);
+			OnExecuteOnMainThread();
 		}
 		break;
 	default:						bHandled = FALSE; break;
@@ -172,6 +192,54 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 void MainFrame::OnDriverInstalled(bool success)
 {
 	::MessageBox(GetHWND(), _T("Driver Installed!"), _T("Driver Installed"), MB_OK);
+}
+
+void MainFrame::OnStringReceived(const char* utf8String)
+{
+	CStringA strData = utf8String;
+
+	// Replace "\r" with "\n"
+	strData.Replace("\r", "\n");
+	while (strData.Replace("\n\n", "\n"))
+	{
+		// do noting.
+	}
+
+	// Send received string back
+	m_pSocketService->SendString(strData);
+
+	// Deal with backspace
+	if (strData == _T("\b"))
+	{
+		m_csSocket.Lock();
+		int bufferCount = m_strSocketCmdBuffer.GetLength();
+		if (bufferCount > 0)
+		{
+			m_strSocketCmdBuffer.Delete(bufferCount - 1);
+		}
+		m_csSocket.Unlock();
+		return;
+	}
+
+	// Check if the whole command is received.
+	int cmdEndPos = strData.Find("\n");
+	if (cmdEndPos == -1)
+	{
+		m_csSocket.Lock();
+		m_strSocketCmdBuffer.Append(strData);
+		m_csSocket.Unlock();
+		return;
+	}
+
+	m_csSocket.Lock();
+	CStringA cmdline = m_strSocketCmdBuffer + strData.Mid(0, cmdEndPos);
+	m_strSocketCmdBuffer = strData.Mid(cmdEndPos + 1);
+	m_csSocket.Unlock();
+
+	if (cmdline.GetLength() > 0)
+	{
+		HandleSocketCommand(UTF8ToCString(cmdline));
+	}
 }
 
 void MainFrame::SetupWindowRegion()
@@ -268,8 +336,147 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 	}
 }
 
-void MainFrame::OnExecuteOnMainThread(MainThreadFunc* pFunc)
+void MainFrame::OnExecuteOnMainThread()
 {
-	ASSERT(pFunc);
-	(*pFunc)();
+	m_csExecuteOnUIThread.Lock();
+	while (m_executeOnMainThreadFunctions.GetCount() > 0) 
+	{
+		MainThreadFunc* pFunc = m_executeOnMainThreadFunctions[0];
+		ASSERT(pFunc);
+		(*pFunc)();
+		m_executeOnMainThreadFunctions.RemoveAt(0);
+	}
+	m_csExecuteOnUIThread.Unlock();
+}
+
+void MainFrame::HandleSocketCommand(const CString& strCmdLine)
+{
+	// Parse the command line
+
+	int curPos = 0;
+	LPCTSTR TOKENS = _T("\t");
+
+	// Get the command name
+	CString cmd = strCmdLine.Tokenize(TOKENS, curPos);
+	if (cmd.IsEmpty())
+	{
+		return;
+	}
+	cmd.MakeLower();
+
+	// Get parameters
+	CAtlArray<CString> params;
+	do 
+	{
+		CString param = strCmdLine.Tokenize(TOKENS, curPos);
+		if (param.IsEmpty())
+		{
+			break;
+		}
+		param.MakeLower();
+		params.Add(param);
+	}
+	while(true);
+	int paramCount = params.GetCount();
+
+	CString errorMesasge;
+
+	if (cmd == _T("info"))
+	{
+		HandleCommandInfo();
+	}
+	else if (cmd == _T("install"))
+	{
+		if (paramCount < 2) 
+		{
+			HandleCommandError(_T("Not enough parameters."));
+			return;
+		}
+		HandleCommandInstall(params[0], params[1]);
+	}
+	else if (cmd == _T("list"))
+	{
+		CString devId;
+		if (paramCount > 0)
+		{
+			devId = params[0];
+		}
+		HandleCommandList(devId);
+	} 
+	else if (cmd == _T("shutdown"))
+	{
+		HandleCommandShutdown();
+	}
+	else if (cmd == _T("message"))
+	{
+		HandleCommandMessage();
+	}
+	else
+	{
+		// Invalid command
+		HandleCommandError(_T("Invalid command"));
+	}
+
+
+}
+
+void MainFrame::HandleCommandInfo()
+{
+	/*
+	{
+		"type": "result",
+		"data": 
+		{
+			"application":"FirefoxOS USB Daemon",
+			"version": 1.0,
+		}
+	}
+	*/
+
+	Json::Value jsonResult;
+	jsonResult["type"] = "result";
+	Json::Value jsonData;
+	CStringA app;
+	app.LoadString(IDS_APP_TITLE);
+	jsonData["application"] = (LPCSTR)app;
+	CStringA version;
+	version.LoadString(IDS_APP_VERSION);
+	jsonData["version"] = strtod(version, NULL);
+	jsonResult["data"] = jsonData;
+	CStringA message = jsonResult.toStyledString().c_str();
+	message += "\n";
+	m_pSocketService->SendString(message);
+}
+
+void MainFrame::HandleCommandInstall(const CString& strDevId, const CString& strPath)
+{
+	HandleCommandError(_T("Not implemented"));
+}
+
+void MainFrame::HandleCommandList(const CString& strDevId)
+{
+	HandleCommandError(_T("Not implemented"));
+}
+
+void MainFrame::HandleCommandShutdown()
+{
+	Close();
+}
+
+void MainFrame::HandleCommandMessage()
+{
+	HandleCommandError(_T("Not implemented"));
+}
+
+void MainFrame::HandleCommandError(const CString& strError)
+{
+	CStringA utf8Error = CStringToUTF8String(strError);
+	Json::Value jsonResult;
+	jsonResult["type"] = "result";
+	Json::Value jsonData;
+	jsonData["errorMessage"] = (LPCSTR)utf8Error;
+	jsonResult["data"] = jsonData;
+	CStringA message = jsonResult.toStyledString().c_str();
+	message += "\n";
+	m_pSocketService->SendString(message);
 }

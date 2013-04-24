@@ -20,13 +20,13 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
-	MainFrame mainFrame;
+	MainFrame* pMainFrame = MainFrame::GetInstance();
 	CString strTitle; 
 	strTitle.LoadString(IDS_APP_TITLE);
-	mainFrame.Create(NULL, strTitle, UI_WNDSTYLE_FRAME, 0L, 0, 0, 190, 341);
-	mainFrame.CenterWindow();
-	mainFrame.SetIcon(IDI_USBMONITOR);
-	mainFrame.ShowWindow();
+	pMainFrame->Create(NULL, strTitle, UI_WNDSTYLE_FRAME, 0L, 0, 0, 190, 341);
+	pMainFrame->CenterWindow();
+	pMainFrame->SetIcon(IDI_USBMONITOR);
+	pMainFrame->ShowWindow();
 
 	CPaintManagerUI::MessageLoop();
 
@@ -36,26 +36,23 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	return 0;
 }
 
-char* CStringToUTF8String(const CString &str)
+CStringA CStringToUTF8String(const CString &str)
 {
 	USES_CONVERSION;
-	char* utf8str = NULL;
+	CStringA utf8str;
 	int cnt = str.GetLength() + 1;
 	TCHAR* tstr = new TCHAR[cnt];
 	_tcsncpy_s(tstr, cnt, str, cnt);
-	if (tstr != NULL)
-	{
-		LPWSTR wstr = T2W(tstr);
+	LPWSTR wstr = T2W(tstr);
 
-		// converts to utf8 string
-		int nUTF8 = WideCharToMultiByte(CP_UTF8, 0, wstr, cnt, NULL, 0, NULL, NULL);
-		if (nUTF8 > 0)
-		{
-			utf8str = new char[nUTF8];
-			WideCharToMultiByte(CP_UTF8, 0, wstr, cnt, utf8str, nUTF8, NULL, NULL);
-		}
-		delete[] tstr;
+	// converts to utf8 string
+	int nUTF8 = WideCharToMultiByte(CP_UTF8, 0, wstr, cnt, NULL, 0, NULL, NULL);
+	if (nUTF8 > 0)
+	{	
+		WideCharToMultiByte(CP_UTF8, 0, wstr, cnt, utf8str.GetBuffer(nUTF8), nUTF8, NULL, NULL);
+		utf8str.ReleaseBuffer();
 	}
+	delete[] tstr;
 	return utf8str;
 }
 

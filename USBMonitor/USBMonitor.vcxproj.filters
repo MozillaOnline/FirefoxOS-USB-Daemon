@@ -66,6 +66,12 @@
     <ClInclude Include="DriverInstallerThread.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SocketComm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SocketService.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -96,6 +102,12 @@
       <Filter>Thread</Filter>
     </ClCompile>
     <ClCompile Include="DriverInstallerThread.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SocketComm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SocketService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
