@@ -1,10 +1,11 @@
 #pragma once
 #include "DriverInstallerThread.h"
+#include "DeviceDatabase.h"
 
 class DriverInstallerCallback abstract
 {
 public:
-	virtual void OnDriverInstalled(bool success) = 0;
+	virtual void OnDriverInstalled(const CString& errorMessage) = 0;
 };
 
 class DriverInstaller: public DriverInstallerThreadCallback
@@ -12,12 +13,6 @@ class DriverInstaller: public DriverInstallerThreadCallback
 public:
 	DriverInstaller(DriverInstallerCallback *pCallback);
 	~DriverInstaller(void);
-
-	enum InstallType
-	{
-		DPINST,
-		EXE
-	};
 
 	void Start(InstallType type, const CString& path);
 

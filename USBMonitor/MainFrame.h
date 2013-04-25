@@ -78,7 +78,7 @@ public:
 	// 
 	// Overrides DriverInstallerCallback
 	//
-	virtual void OnDriverInstalled(bool success) override;
+	virtual void OnDriverInstalled(const CString& errorMessage) override;
 
 public:
 	//
@@ -112,7 +112,7 @@ private:
 	void SendSocketMessageNotification();
 
 	void AddSocketMessageDeviceChange(const CString& strEventType, const CString& strDevId);
-	void AddSocketMessageDriverInstalled(const CString& strDevId, const CString& strErrorMessage);
+	void AddSocketMessageDriverInstalled(const CString& strErrorMessage);
 
 	void EnqueuePendingNotification(const CStringA& strMessage);
 	CStringA DequeuePendingNotification();
@@ -144,4 +144,3 @@ private:
 	CAtlArray<CStringA> m_pendingNotifications;
 	CComCriticalSection m_csPendingNotifications;
 };
-

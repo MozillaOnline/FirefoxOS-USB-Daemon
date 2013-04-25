@@ -82,14 +82,32 @@ void DriverInstaller::OnThreadTerminated(bool success)
 	TRACE(_T("DriverInstaller::OnThreadTerminated\nError Code: %x\nError Message:\n\n"),
 		m_pThread->GetExitCode(),
 		m_pThread->GetErrorMessge());
+	CString errorMessage = m_pThread->GetErrorMessge();
 	switch(m_type)
 	{
 	case DPINST:
+		{
+			DWORD dwResult = m_pThread->GetExitCode() >> 24; 
+			if (dwResult & 0x80)
+			{
+				errorMessage = _T("[DPINST] Driver package could not be installed.");
+			}
+			else if (dwResult & 0x40)
+			{
+				errorMessage = _T("[DPINST] Restart needed.");
+			}
+		}
 		break;
 	case EXE:
+		{
+			if (m_pThread->GetExitCode() != 0)
+			{
+				errorMessage.Format(_T("Intalled failed with error code %x"), m_pThread->GetExitCode());
+			}
+		}
 		break;
 	}
-	m_pCallback->OnDriverInstalled(success);
+	m_pCallback->OnDriverInstalled(errorMessage);
 	m_cs.Lock();
 	m_bIsRunning = false;
 	m_cs.Unlock();

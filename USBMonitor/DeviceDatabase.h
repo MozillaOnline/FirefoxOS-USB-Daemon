@@ -1,11 +1,17 @@
 #pragma once
 
+enum InstallType
+{
+	DPINST,
+	EXE
+};
+
 struct DriverInfo
 {
 	CString DeviceInstanceId;
 	CString AndroidHardwareID;
 	CString DriverDownlaodURL;
-	bool ShowWindow;
+	InstallType InstallType;
 };
 
 /**

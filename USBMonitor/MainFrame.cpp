@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "MainFrame.h"
 #include "App.h"
+#include "DeviceDatabase.h"
 
 MainFrame::MainFrame(void)
 	: m_pDeviceStatusLabel(NULL)
@@ -216,9 +217,9 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 	return strText;
 }
 
-void MainFrame::OnDriverInstalled(bool success)
+void MainFrame::OnDriverInstalled(const CString& errorMessage)
 {
-	::MessageBox(GetHWND(), _T("Driver Installed!"), _T("Driver Installed"), MB_OK);
+	AddSocketMessageDriverInstalled(errorMessage);
 }
 
 void MainFrame::OnStringReceived(const char* utf8String)
@@ -395,7 +396,6 @@ void MainFrame::HandleSocketCommand(const CString& strCmdLine)
 	{
 		return;
 	}
-	cmd.MakeLower();
 
 	// Get parameters
 	CAtlArray<CString> params;
@@ -406,7 +406,6 @@ void MainFrame::HandleSocketCommand(const CString& strCmdLine)
 		{
 			break;
 		}
-		param.MakeLower();
 		params.Add(param);
 	}
 	while(true);
@@ -485,8 +484,42 @@ void MainFrame::HandleCommandInfo()
 
 void MainFrame::HandleCommandInstall(const CString& strDevId, const CString& strPath)
 {
-	//m_pDriverInstaller->Start(DriverInstaller::DPINST, _T("drivers\\zte_google_usb_driver"));
-	HandleCommandError(_T("Not implemented"));
+	CString errorMessage;
+	const DriverInfo* pInfo = DeviceDatabase::Instance()->FindDriverByDeviceInstanceID(strDevId);
+	if (pInfo == NULL)
+	{
+		errorMessage.Format(_T("Device %s not found. "), strDevId);
+	}
+	else if (m_pDriverInstaller->IsRunning())
+	{
+		errorMessage = _T("installer is already running");
+	} 
+	else 
+	{
+		m_pDriverInstaller->Start(pInfo->InstallType, strPath);
+	}
+	HandleCommandError(errorMessage);
+}
+
+static void GetDeviceInfoJson(const DeviceInfo* pInfo, Json::Value& jsonInfo)
+{
+	jsonInfo["deviceInstanceId"] = static_cast<LPCSTR>(CStringToUTF8String(pInfo->DeviceInstanceId));
+	CStringA state;
+	switch (pInfo->InstallState)
+	{
+	case CM_INSTALL_STATE_INSTALLED:
+	case CM_INSTALL_STATE_FINISH_INSTALL:
+		state = "installed";
+		break;
+	case CM_INSTALL_STATE_NEEDS_REINSTALL: // Fall through
+	case CM_INSTALL_STATE_FAILED_INSTALL:
+		state = "failed";
+		break;
+	default:
+		state = "notInstalled";
+		break;
+	}
+	jsonInfo["state"] = (LPCSTR)state;
 }
 
 void MainFrame::HandleCommandList(const CString& strDevId)
@@ -496,30 +529,30 @@ void MainFrame::HandleCommandList(const CString& strDevId)
 	Json::Value jsonData(Json::arrayValue);
 
 	Json::arrayValue;
-	int count = m_pDeviceMonitor->GetDeviceCount();
 	m_pDeviceMonitor->Lock();
-	for (int i = 0; i < count; i++)
+	int count = m_pDeviceMonitor->GetDeviceCount();
+	if (count > 0)
 	{
-		const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(i);
-		Json::Value jsonInfo;
-		jsonInfo["deviceInstanceId"] = static_cast<LPCSTR>(CStringToUTF8String(pInfo->DeviceInstanceId));
-		CStringA state;
-		switch (pInfo->InstallState)
+		if (strDevId.IsEmpty())
 		{
-		case CM_INSTALL_STATE_INSTALLED:
-		case CM_INSTALL_STATE_FINISH_INSTALL:
-			state = "installed";
-			break;
-		case CM_INSTALL_STATE_NEEDS_REINSTALL: // Fall through
-		case CM_INSTALL_STATE_FAILED_INSTALL:
-			state = "failed";
-			break;
-		default:
-			state = "notInstalled";
-			break;
+			for (int i = 0; i < count; i++)
+			{
+				const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(i);
+				Json::Value jsonInfo;
+				GetDeviceInfoJson(pInfo, jsonInfo);
+				jsonData.append(jsonInfo);
+			}
 		}
-		jsonInfo["state"] = (LPCSTR)state;
-		jsonData.append(jsonInfo);
+		else
+		{
+			const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoById(strDevId);
+			if (pInfo)
+			{
+				Json::Value jsonInfo;
+				GetDeviceInfoJson(pInfo, jsonInfo);
+				jsonData.append(jsonInfo);
+			}
+		}
 	}
 	m_pDeviceMonitor->Unlock();
 	jsonResult["data"] = jsonData;
@@ -569,6 +602,7 @@ void MainFrame::AddSocketMessageDeviceChange(const CString& strEventType, const 
 {
 	Json::Value jsonMessage;
 	jsonMessage["type"] = "message";
+	jsonMessage["name"] = "deviceChanged";
 	Json::Value jsonData;
 	jsonData["eventType"] = static_cast<LPCSTR>(CStringToUTF8String(strEventType));
 	jsonData["deviceInstanceId"] = static_cast<LPCSTR>(CStringToUTF8String(strDevId));
@@ -577,8 +611,16 @@ void MainFrame::AddSocketMessageDeviceChange(const CString& strEventType, const 
 	EnqueuePendingNotification(message);
 }
 
-void MainFrame::AddSocketMessageDriverInstalled(const CString& strDevId, const CString& strErrorMessage)
+void MainFrame::AddSocketMessageDriverInstalled(const CString& strErrorMessage)
 {
+	Json::Value jsonMessage;
+	jsonMessage["type"] = "message";
+	jsonMessage["name"] = "driverInstalled";
+	Json::Value jsonData;
+	jsonData["errorMessage"] = static_cast<LPCSTR>(CStringToUTF8String(strErrorMessage));
+	jsonMessage["data"] = jsonData;
+	CStringA message = jsonMessage.toStyledString().c_str();
+	EnqueuePendingNotification(message);
 }
 
 void MainFrame::EnqueuePendingNotification(const CStringA& strMessage)
