@@ -12,10 +12,14 @@ MainFrame::MainFrame(void)
 	m_pSocketService = new SocketService(this);
 	m_csExecuteOnUIThread.Init();
 	m_csSocket.Init();
+	m_csDeviceArrivalEvent.Init();
+	m_csPendingNotifications.Init();
 }
 
 MainFrame::~MainFrame(void)
 {
+	m_csPendingNotifications.Term();
+	m_csDeviceArrivalEvent.Term();
 	m_csSocket.Term();
 	m_csExecuteOnUIThread.Term();
 	delete m_pDeviceMonitor;
@@ -139,8 +143,22 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 // A supported device has been inserted.
 void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 {
-	// Add delay to make sure it is ready to get the driver installation state.
-	::SetTimer(this->GetHWND(), DEVICE_LIST_DELAY_UPDATE_TIMER_ID, 500, NULL);
+	// Check if the event is duplicated.
+	m_csDeviceArrivalEvent.Lock();
+	CString strDevId = lpstrDevId;
+	int n = m_deviceArrivalEventQueue.GetCount();
+	for (int i = 0; i < n; i++)
+	{
+		if (m_deviceArrivalEventQueue[i] == strDevId)
+		{
+			m_csDeviceArrivalEvent.Unlock();
+			return;
+		}
+	}
+	// Add a short delay to make sure it is ready to get the driver installation state.
+	::SetTimer(this->GetHWND(), DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID, 500, NULL);
+	m_deviceArrivalEventQueue.Add(strDevId);
+	m_csDeviceArrivalEvent.Unlock();
 
 	CString text;
 	text.Format(_T("%s connected"), DeviceInfo::GetSerialNumber(lpstrDevId));
@@ -150,6 +168,8 @@ void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 // A supported device has been removed.
 void MainFrame::OnDeviceRemoved(LPCTSTR lpstrDevId)
 {
+	AddSocketMessageDeviceChange(_T("removed"), lpstrDevId);
+
 	CString text;
 	text.Format(_T("%s disconnected"), DeviceInfo::GetSerialNumber(lpstrDevId));
 	m_pDeviceStatusLabel->SetText(text);
@@ -333,10 +353,19 @@ void MainFrame::UpdateDeviceList()
 
 void MainFrame::OnTimer(UINT_PTR nIDEvent)
 {
-	if (nIDEvent == DEVICE_LIST_DELAY_UPDATE_TIMER_ID)
+	if (nIDEvent == DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID)
 	{
+		m_csDeviceArrivalEvent.Lock();
+		::KillTimer(GetHWND(), DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID);
+		while (m_deviceArrivalEventQueue.GetCount() > 0)
+		{
+			CString strDevId = m_deviceArrivalEventQueue[0];
+			m_deviceArrivalEventQueue.RemoveAt(0);
+			AddSocketMessageDeviceChange(_T("arrived"), strDevId);
+		}
+		m_csDeviceArrivalEvent.Unlock();
+
 		UpdateDeviceList();
-		::KillTimer(GetHWND(), DEVICE_LIST_DELAY_UPDATE_TIMER_ID);
 	}
 }
 
@@ -473,7 +502,7 @@ void MainFrame::HandleCommandList(const CString& strDevId)
 	{
 		const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(i);
 		Json::Value jsonInfo;
-		jsonInfo["deviceInstanceId"] = (LPCSTR)CStringToUTF8String(pInfo->DeviceInstanceId);
+		jsonInfo["deviceInstanceId"] = static_cast<LPCSTR>(CStringToUTF8String(pInfo->DeviceInstanceId));
 		CStringA state;
 		switch (pInfo->InstallState)
 		{
@@ -506,7 +535,16 @@ void MainFrame::HandleCommandShutdown()
 
 void MainFrame::HandleCommandMessage()
 {
-	HandleCommandError(_T("Not implemented"));
+	CStringA message = DequeuePendingNotification();
+	if (!message.IsEmpty())
+	{
+		message += "\n";
+		m_pSocketService->SendString(message);
+	}
+	else
+	{
+		HandleCommandError("No message found.");
+	}
 }
 
 void MainFrame::HandleCommandError(const CString& strError)
@@ -515,9 +553,51 @@ void MainFrame::HandleCommandError(const CString& strError)
 	Json::Value jsonResult;
 	jsonResult["type"] = "result";
 	Json::Value jsonData;
-	jsonData["errorMessage"] = (LPCSTR)utf8Error;
+	jsonData["errorMessage"] = static_cast<LPCSTR>(utf8Error);
 	jsonResult["data"] = jsonData;
 	CStringA message = jsonResult.toStyledString().c_str();
 	message += "\n";
 	m_pSocketService->SendString(message);
+}
+
+void MainFrame::SendSocketMessageNotification()
+{
+	m_pSocketService->SendString("\a");
+}
+
+void MainFrame::AddSocketMessageDeviceChange(const CString& strEventType, const CString& strDevId)
+{
+	Json::Value jsonMessage;
+	jsonMessage["type"] = "message";
+	Json::Value jsonData;
+	jsonData["eventType"] = static_cast<LPCSTR>(CStringToUTF8String(strEventType));
+	jsonData["deviceInstanceId"] = static_cast<LPCSTR>(CStringToUTF8String(strDevId));
+	jsonMessage["data"] = jsonData;
+	CStringA message = jsonMessage.toStyledString().c_str();
+	EnqueuePendingNotification(message);
+}
+
+void MainFrame::AddSocketMessageDriverInstalled(const CString& strDevId, const CString& strErrorMessage)
+{
+}
+
+void MainFrame::EnqueuePendingNotification(const CStringA& strMessage)
+{
+	m_csPendingNotifications.Lock();
+	m_pendingNotifications.Add(strMessage);
+	m_csPendingNotifications.Unlock();
+	SendSocketMessageNotification();
+}
+
+CStringA MainFrame::DequeuePendingNotification()
+{
+	CStringA head;
+	m_csPendingNotifications.Lock();
+	if (m_pendingNotifications.GetCount() > 0)
+	{
+		head = m_pendingNotifications[0];
+		m_pendingNotifications.RemoveAt(0);
+	}
+	m_csPendingNotifications.Unlock();
+	return head;
 }

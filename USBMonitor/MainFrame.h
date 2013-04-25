@@ -108,6 +108,15 @@ private:
 	void HandleCommandMessage();
 	void HandleCommandError(const CString& strError);
 
+	// Notify the socket clients that there is a new message
+	void SendSocketMessageNotification();
+
+	void AddSocketMessageDeviceChange(const CString& strEventType, const CString& strDevId);
+	void AddSocketMessageDriverInstalled(const CString& strDevId, const CString& strErrorMessage);
+
+	void EnqueuePendingNotification(const CStringA& strMessage);
+	CStringA DequeuePendingNotification();
+
 	DeviceMonitor* m_pDeviceMonitor;
 
 	CLabelUI* m_pDeviceStatusLabel;
@@ -115,7 +124,12 @@ private:
 
 	CAtlArray<CAutoPtr<MainThreadFunc>> m_executeOnMainThreadFunctions;
 
-	static const UINT_PTR DEVICE_LIST_DELAY_UPDATE_TIMER_ID = 0;
+	// The device arrival event will be send to the socket client after a short detail to ensure the client get 
+	// the correct driver state and avoid sending duplicated events.
+	static const UINT_PTR DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID = 0;
+	CAtlArray<CString> m_deviceArrivalEventQueue;
+	CComCriticalSection m_csDeviceArrivalEvent;
+
 	static const UINT WM_EXECUTE_ON_MAIN_THREAD = WM_USER + 200;
 
 	DriverInstaller* m_pDriverInstaller;
@@ -123,8 +137,11 @@ private:
 	CComCriticalSection m_csExecuteOnUIThread;
 
 	SocketService* m_pSocketService;
+	// String buffer to store incomplete socket command
 	CStringA m_strSocketCmdBuffer;
 	CComCriticalSection m_csSocket;
+	// Notification strings needed to send to the socket clients.
 	CAtlArray<CStringA> m_pendingNotifications;
+	CComCriticalSection m_csPendingNotifications;
 };
 
