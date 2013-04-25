@@ -6,6 +6,17 @@
 #include "MainFrame.h"
 #include "DeviceDatabase.h"
 
+/**
+ * Check if other instance of current application is running.
+ * @param sID - An identifier to distinguish this instance from others.
+ * @return true if there exist other running instances. 
+ */
+bool InstanceExits(CString sID)
+{
+	HANDLE hRet = ::CreateMutex(NULL, TRUE, sID);	
+	return GetLastError() == ERROR_ALREADY_EXISTS;
+}
+
 int APIENTRY _tWinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
                      LPTSTR    lpCmdLine,
@@ -14,6 +25,15 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
+	CString strAppTitle; 
+	strAppTitle.LoadString(IDS_APP_TITLE);
+
+	// Don't run more than once
+	if (InstanceExits(strAppTitle))
+	{
+		return 0;
+	}
+
 	CPaintManagerUI::SetInstance(hInstance);
 
 	CPaintManagerUI::SetResourcePath(CPaintManagerUI::GetInstancePath());
@@ -21,9 +41,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
 	MainFrame* pMainFrame = MainFrame::GetInstance();
-	CString strTitle; 
-	strTitle.LoadString(IDS_APP_TITLE);
-	pMainFrame->Create(NULL, strTitle, UI_WNDSTYLE_FRAME, 0L, 0, 0, 190, 341);
+	pMainFrame->Create(NULL, strAppTitle, UI_WNDSTYLE_FRAME, 0L, 0, 0, 190, 341);
 	pMainFrame->CenterWindow();
 	pMainFrame->SetIcon(IDI_USBMONITOR);
 	pMainFrame->ShowWindow();
