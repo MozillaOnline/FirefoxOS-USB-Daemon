@@ -6,9 +6,12 @@
 #include "MainFrame.h"
 #include "DeviceDatabase.h"
 
+bool SetAutoRun(CString sTitle, bool bEnable);
+
 /**
  * Check if other instance of current application is running.
- * @param sID - An identifier to distinguish this instance from others.
+ * @param sID - An identifier to distinguish this 
+ from others.
  * @return true if there exist other running instances. 
  */
 bool InstanceExits(CString sID)
@@ -27,6 +30,23 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 	CString strAppTitle; 
 	strAppTitle.LoadString(IDS_APP_TITLE);
+
+	// Parse the command line to get the first paramater
+	int curPos = 0;
+	CString strCmdLine = lpCmdLine;
+	LPCTSTR TOKENS = _T(" \t");
+	CString param = strCmdLine.Tokenize(TOKENS, curPos);
+
+	if (param == _T("install"))
+	{
+		SetAutoRun(strAppTitle, true);
+		return 0;
+	}
+	else if (param == _T("uninstall")) 
+	{
+		SetAutoRun(strAppTitle, false);
+		return 0;
+	}
 
 	// Don't run more than once
 	if (InstanceExits(strAppTitle))
@@ -53,6 +73,50 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	::CoUninitialize();
 	return 0;
 }
+
+/**
+ * Modify the registry to run the appliction automatically when Windows starts up.
+ * @param sTitle The name of the registry key whick contains autorun info.
+ * @param  bEnable Flag that indicates whether to enable autorun when windows starts up.
+ * @return true if the operation is successful; otherwise false.
+ */
+bool SetAutoRun(CString sTitle, bool bEnable)
+{
+	// Get the file name of current application.
+	CString sFileName;
+	::GetModuleFileName(NULL, sFileName.GetBuffer(_MAX_PATH), _MAX_PATH);
+	sFileName.ReleaseBuffer();
+
+	//Open the Registry key
+	HKEY hKey;
+	LPCTSTR key = _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\");
+	if (::RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_ALL_ACCESS, &hKey))
+	{
+		return false;
+	}
+
+	//Set the value under the key
+	if (bEnable)
+	{
+		if (::RegSetValueEx(hKey, sTitle, 0, REG_SZ, reinterpret_cast<const BYTE *>(static_cast<LPCTSTR>(sFileName)), (sFileName.GetLength() + 1) * sizeof(TCHAR)))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (::RegDeleteValue (hKey, sTitle))
+		{
+			return false;
+		}
+	}
+
+	// Close the registry key.
+	::RegCloseKey(hKey);	
+
+	return true;
+}
+
 
 CStringA CStringToUTF8String(const CString &str)
 {
@@ -97,7 +161,7 @@ typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 BOOL Is64BitWindows()
 {
 #if defined(_WIN64)
-    return TRUE;  // 64-bit programs run only on Win64
+    return TRUE;  // 64-bit programs  onlruny on Win64
 #elif defined(_WIN32)
     // 32-bit programs run on both 32-bit and 64-bit Windows
     // so must sniff
