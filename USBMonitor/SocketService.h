@@ -40,6 +40,9 @@ private:
 	void OnEvent(UINT uEvent, CSocketManager* pManager);
 
 	bool StartNewServer();
+
+	// Save port number to drvier_manager.ini
+	void SavePortNum(const CString& strPort) const;
 private:
 	class CSocketManager: public CSocketComm 
 	{

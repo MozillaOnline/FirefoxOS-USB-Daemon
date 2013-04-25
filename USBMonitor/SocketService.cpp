@@ -62,7 +62,7 @@ void SocketService::Stop()
 			m_SocketManager[i].StopComm();
 		}
 	}
-	m_pCurServer == NULL;
+	m_pCurServer = NULL;
 
 	// Terminate use of the WS2_32.DLL
 	WSACleanup();
@@ -87,9 +87,23 @@ bool SocketService::StartNewServer()
 
 	// no smart addressing - we use connection oriented
 	m_pCurServer->SetSmartAddressing(false);
-	// create TCP socket
-	if (!m_pCurServer->CreateSocketEx(_T("127.0.0.1"), _T("23"), AF_INET, SOCK_STREAM, 0))
+	
+	// Find an available port to start server
+	int port;
+	CString strPort;
+	for (port = 8000; port < 9000; port += 23)
 	{
+		// create TCP socket
+		strPort.Format(_T("%d"), port);
+		if (m_pCurServer->CreateSocketEx(_T("127.0.0.1"), strPort, AF_INET, SOCK_STREAM, 0))
+		{
+			break;
+		}
+	}
+	if (port >= 9000) 
+	{
+		// No availalbe port found.
+		TRACE(_T("Failed to start server. No availalbe port found\n"));
 		m_pCurServer = NULL;
 		return false;
 	}
@@ -100,8 +114,15 @@ bool SocketService::StartNewServer()
 		m_pCurServer = NULL;
 		return false;
 	}
-	TRACE(_T("Server started.\n"));
+	TRACE(_T("Server started. Port=%s\n"), strPort);
+	SavePortNum(strPort);
 	return true;
+}
+
+void SocketService::SavePortNum(const CString& strPort) const
+{
+	CString fileName = CPaintManagerUI::GetInstancePath() + _T("drvier_manager.ini");
+	::WritePrivateProfileString(_T("socket"), _T("port"), strPort, static_cast<LPCTSTR>(fileName));
 }
 
 void SocketService::SendString(const char* utf8String)
