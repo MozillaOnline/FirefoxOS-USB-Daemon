@@ -6,19 +6,11 @@
 #include "MainFrame.h"
 #include "DeviceDatabase.h"
 
-bool SetAutoRun(CString sTitle, bool bEnable);
+LPCTSTR DRIVER_MANAGER_INI_FILE = _T("driver_manager.ini");
 
-/**
- * Check if other instance of current application is running.
- * @param sID - An identifier to distinguish this 
- from others.
- * @return true if there exist other running instances. 
- */
-bool InstanceExits(CString sID)
-{
-	HANDLE hRet = ::CreateMutex(NULL, TRUE, sID);	
-	return GetLastError() == ERROR_ALREADY_EXISTS;
-}
+static bool SetAutoRun(CString sTitle, bool bEnable);
+
+static bool InstanceExits(CString sID);
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
@@ -75,12 +67,33 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 }
 
 /**
+ * Check if other instance of current application is running.
+ * @param sID - An identifier to distinguish this 
+ from others.
+ * @return true if there exist other running instances. 
+ */
+static bool InstanceExits(CString sID)
+{
+	HANDLE hRet = ::CreateMutex(NULL, TRUE, sID);
+	if (hRet == NULL)
+	{
+		return true;
+	}
+	if (GetLastError() == ERROR_ALREADY_EXISTS)
+	{
+		::CloseHandle(hRet);
+		return true;
+	}
+	return false;
+}
+
+/**
  * Modify the registry to run the appliction automatically when Windows starts up.
  * @param sTitle The name of the registry key whick contains autorun info.
  * @param  bEnable Flag that indicates whether to enable autorun when windows starts up.
  * @return true if the operation is successful; otherwise false.
  */
-bool SetAutoRun(CString sTitle, bool bEnable)
+static bool SetAutoRun(CString sTitle, bool bEnable)
 {
 	// Get the file name of current application.
 	CString sFileName;

@@ -31,6 +31,10 @@
 // ShellExecuteEx
 #include <Shellapi.h>
 
+// GetModuleFileNameEx, EnumProcess
+#include <Psapi.h>
+#pragma comment(lib, "Psapi.lib")
+
 // ATL base
 #include <atlcore.h>
 // String conversion functions, such as A2T, T2A

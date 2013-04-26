@@ -2,6 +2,7 @@
 #include "MainFrame.h"
 #include "App.h"
 #include "DeviceDatabase.h"
+#include "FirefoxLoader.h"
 
 MainFrame::MainFrame(void)
 	: m_pDeviceStatusLabel(NULL)
@@ -37,9 +38,8 @@ MainFrame MainFrame::s_instance;
 
 void MainFrame::ExecuteOnUIThread(MainThreadFunc func)
 {
-	CAutoPtr<MainThreadFunc> pFunc(new MainThreadFunc(func));
 	m_csExecuteOnUIThread.Lock();
-	m_executeOnMainThreadFunctions.Add(pFunc);
+	m_executeOnMainThreadFunctions.Add(func);
 	m_csExecuteOnUIThread.Unlock();
 	::PostMessage(GetHWND(), WM_EXECUTE_ON_MAIN_THREAD, NULL, NULL);
 }
@@ -59,6 +59,12 @@ void MainFrame::OnPrepare(TNotifyUI& msg)
 	m_pDeviceMonitor->AddObserver(this);
 
 	UpdateDeviceList();
+
+	// Load firefox if there exits firefox OS devices
+	if (m_pDeviceMonitor->GetDeviceCount() > 0)
+	{
+		FirefoxLoader::TryLoad();
+	}
 
 	m_pSocketService->Start();
 }
@@ -366,6 +372,12 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 		}
 		m_csDeviceArrivalEvent.Unlock();
 
+		// Load firefox if firefox OS devices exits
+		if (m_pDeviceMonitor->GetDeviceCount() > 0)
+		{
+			FirefoxLoader::TryLoad();
+		}
+
 		UpdateDeviceList();
 	}
 }
@@ -375,9 +387,8 @@ void MainFrame::OnExecuteOnMainThread()
 	m_csExecuteOnUIThread.Lock();
 	while (m_executeOnMainThreadFunctions.GetCount() > 0) 
 	{
-		MainThreadFunc* pFunc = m_executeOnMainThreadFunctions[0];
-		ASSERT(pFunc);
-		(*pFunc)();
+		MainThreadFunc func = m_executeOnMainThreadFunctions[0];
+		func();
 		m_executeOnMainThreadFunctions.RemoveAt(0);
 	}
 	m_csExecuteOnUIThread.Unlock();

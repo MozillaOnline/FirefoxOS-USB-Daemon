@@ -91,6 +91,7 @@
     <ClInclude Include="DeviceMonitor.h" />
     <ClInclude Include="DriverInstaller.h" />
     <ClInclude Include="DriverInstallerThread.h" />
+    <ClInclude Include="FirefoxLoader.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SocketComm.h" />
@@ -107,6 +108,7 @@
     <ClCompile Include="DeviceMonitor.cpp" />
     <ClCompile Include="DriverInstaller.cpp" />
     <ClCompile Include="DriverInstallerThread.cpp" />
+    <ClCompile Include="FirefoxLoader.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="SocketComm.cpp" />
     <ClCompile Include="SocketService.cpp" />

@@ -25,7 +25,7 @@ void SocketService::Start()
 		if (LOBYTE(WSAData.wVersion) != LOBYTE(WSA_VERSION) ||
 			HIBYTE(WSAData.wVersion) != HIBYTE(WSA_VERSION))
 		{
-			 ::MessageBox(NULL, _T("Incorrect version of WS2_32.dll found"), _T("Error"), MB_OK);
+			::MessageBox(NULL, _T("Incorrect version of WS2_32.dll found"), _T("Error"), MB_OK);
 		}
 
 		WSACleanup( );
@@ -87,7 +87,7 @@ bool SocketService::StartNewServer()
 
 	// no smart addressing - we use connection oriented
 	m_pCurServer->SetSmartAddressing(false);
-	
+
 	// Find an available port to start server
 	int port;
 	CString strPort;
@@ -121,7 +121,7 @@ bool SocketService::StartNewServer()
 
 void SocketService::SavePortNum(const CString& strPort) const
 {
-	CString fileName = CPaintManagerUI::GetInstancePath() + _T("drvier_manager.ini");
+	CString fileName = CPaintManagerUI::GetInstancePath() + DRIVER_MANAGER_INI_FILE;
 	::WritePrivateProfileString(_T("socket"), _T("port"), strPort, static_cast<LPCTSTR>(fileName));
 }
 
@@ -197,11 +197,18 @@ void SocketService::CSocketManager::OnDataReceived(const LPBYTE lpBuffer, DWORD 
 	char* utf8String = new char[dwCount + 1];
 	memcpy(utf8String, lpBuffer, dwCount);
 	utf8String[dwCount] = '\0';
-	m_pParent->OnStringReceived(utf8String);
+	CStringA received = utf8String;
 	delete[] utf8String;
+	MainFrame::GetInstance()->ExecuteOnUIThread([received, this]()
+	{
+		m_pParent->OnStringReceived(received);
+	});
 }
 
 void SocketService::CSocketManager::OnEvent(UINT uEvent, LPVOID lpvData)
 {
-	m_pParent->OnEvent(uEvent, this);
+	MainFrame::GetInstance()->ExecuteOnUIThread([this, uEvent]()
+	{
+		m_pParent->OnEvent(uEvent, this);
+	});
 }

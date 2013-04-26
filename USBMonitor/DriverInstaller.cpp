@@ -28,10 +28,14 @@ static CString GetEncodedFilePath(const CString& strPath)
 
 void DriverInstaller::Start(InstallType type, const CString& path)
 {
-	if (IsRunning())
+	m_cs.Lock();
+	if (m_bIsRunning)
 	{
+		m_cs.Unlock();
 		return;
 	}
+	m_cs.Unlock();
+
 	m_type = type;
 	CString file;
 	CString params;
@@ -71,10 +75,7 @@ void DriverInstaller::Abort()
 
 bool DriverInstaller::IsRunning()
 {
-	m_cs.Lock();
-	bool ret = m_bIsRunning;
-	m_cs.Unlock();
-	return ret;
+	return m_bIsRunning;
 }
 
 void DriverInstaller::OnThreadTerminated(bool success)
