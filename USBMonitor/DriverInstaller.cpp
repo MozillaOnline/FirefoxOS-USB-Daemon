@@ -38,6 +38,7 @@ void DriverInstaller::Start(InstallType type, const CString& path)
 
 	m_type = type;
 	CString file;
+	CString absolutePath = CPaintManagerUI::GetInstancePath() + (LPCTSTR)path;
 	CString params;
 	bool showWindow = false;
 	switch(m_type)
@@ -45,14 +46,13 @@ void DriverInstaller::Start(InstallType type, const CString& path)
 	case DPINST:
 		{
 			file = CPaintManagerUI::GetInstancePath() + (Is64BitWindows() ? _T("dpinst64.exe") : _T("dpinst32.exe"));
-			CString driverPath = CPaintManagerUI::GetInstancePath() + (LPCTSTR)path;
-			params.Format(_T(" /Q /SH /C /PATH %s"), (LPCTSTR)GetEncodedFilePath(driverPath));
+			params.Format(_T(" /Q /SH /C /PATH %s"), (LPCTSTR)GetEncodedFilePath(absolutePath));
 			showWindow = false;
 		}
 		break;
 	case EXE:
 		{
-			file = path;
+			file = absolutePath;
 			showWindow = true;
 		}
 		break;
@@ -84,29 +84,32 @@ void DriverInstaller::OnThreadTerminated(bool success)
 		m_pThread->GetExitCode(),
 		m_pThread->GetErrorMessge());
 	CString errorMessage = m_pThread->GetErrorMessge();
-	switch(m_type)
+	if (errorMessage.IsEmpty())
 	{
-	case DPINST:
+		switch(m_type)
 		{
-			DWORD dwResult = m_pThread->GetExitCode() >> 24; 
-			if (dwResult & 0x80)
+		case DPINST:
 			{
-				errorMessage = _T("[DPINST] Driver package could not be installed.");
+				DWORD dwResult = m_pThread->GetExitCode() >> 24; 
+				if (dwResult & 0x80)
+				{
+					errorMessage = _T("[DPINST] Driver package could not be installed.");
+				}
+				else if (dwResult & 0x40)
+				{
+					errorMessage = _T("[DPINST] Restart needed.");
+				}
 			}
-			else if (dwResult & 0x40)
+			break;
+		case EXE:
 			{
-				errorMessage = _T("[DPINST] Restart needed.");
+				if (m_pThread->GetExitCode() != 0)
+				{
+					errorMessage.Format(_T("Intalled failed with error code %x"), m_pThread->GetExitCode());
+				}
 			}
+			break;
 		}
-		break;
-	case EXE:
-		{
-			if (m_pThread->GetExitCode() != 0)
-			{
-				errorMessage.Format(_T("Intalled failed with error code %x"), m_pThread->GetExitCode());
-			}
-		}
-		break;
 	}
 	m_pCallback->OnDriverInstalled(errorMessage);
 	m_cs.Lock();
