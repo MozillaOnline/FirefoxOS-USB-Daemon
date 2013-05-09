@@ -9,6 +9,8 @@
 class SocketServiceCallback
 {
 public:
+	virtual void OnConnect() = 0;
+	virtual void OnDisconnect() = 0;
 	virtual void OnStringReceived(const char* utf8String) = 0;
 };
 
@@ -33,6 +35,9 @@ public:
 
 	// Send message to all clients.
 	void SendString(const char* utf8String);
+
+	// Number of clients connected
+	int GetClientCount() const;
 private:
 	class CSocketManager;
 

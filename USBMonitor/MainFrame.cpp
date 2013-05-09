@@ -5,7 +5,8 @@
 #include "FirefoxLoader.h"
 
 MainFrame::MainFrame(void)
-	: m_pDeviceStatusLabel(NULL)
+	: m_pClientNumLabel(NULL)
+	, m_pDeviceStatusLabel(NULL)
 	, m_pDeviceList(NULL)
 	, m_pSocketService(NULL)
 {
@@ -49,9 +50,11 @@ void MainFrame::OnPrepare(TNotifyUI& msg)
 	SetupWindowRegion();
 
 	// Bind UI control variables
-	m_pDeviceStatusLabel = static_cast<CLabelUI*>(m_PaintManager.FindControl(_T("deviceStatusLabel")));
+	m_pClientNumLabel = dynamic_cast<CLabelUI*>(m_PaintManager.FindControl(_T("clientNumLabel")));
+	ASSERT(m_pClientNumLabel);
+	m_pDeviceStatusLabel = dynamic_cast<CLabelUI*>(m_PaintManager.FindControl(_T("deviceStatusLabel")));
 	ASSERT(m_pDeviceStatusLabel);
-	m_pDeviceList = static_cast<CListUI*>(m_PaintManager.FindControl(_T("deviceList")));
+	m_pDeviceList = dynamic_cast<CListUI*>(m_PaintManager.FindControl(_T("deviceList")));
 	ASSERT(m_pDeviceList);
 	m_pDeviceList->SetTextCallback(this);
 
@@ -223,6 +226,16 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 	return strText;
 }
 
+void MainFrame::OnConnect()
+{
+	UpdateClientNum();
+}
+
+void MainFrame::OnDisconnect()
+{
+	UpdateClientNum();
+}
+
 void MainFrame::OnDriverInstalled(const CString& errorMessage)
 {
 	AddSocketMessageDriverInstalled(errorMessage);
@@ -358,6 +371,13 @@ void MainFrame::UpdateDeviceList()
 	m_pDeviceList->SetVisible(count > 0);
 }
 
+void MainFrame::UpdateClientNum()
+{
+	CString message;
+	message.Format(_T("Clients: %d"), m_pSocketService->GetClientCount());
+	m_pClientNumLabel->SetText(message);
+}
+
 void MainFrame::OnTimer(UINT_PTR nIDEvent)
 {
 	if (nIDEvent == DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID)
@@ -469,7 +489,7 @@ void MainFrame::HandleCommandInfo()
 {
 	/*
 	{
-		"type": "result",
+		"type": "info",
 		"data": 
 		{
 			"application":"FirefoxOS USB Daemon",
@@ -479,7 +499,7 @@ void MainFrame::HandleCommandInfo()
 	*/
 
 	Json::Value jsonResult;
-	jsonResult["type"] = "result";
+	jsonResult["type"] = "info";
 	Json::Value jsonData;
 	CStringA app;
 	app.LoadString(IDS_APP_TITLE);
@@ -495,6 +515,14 @@ void MainFrame::HandleCommandInfo()
 
 void MainFrame::HandleCommandInstall(const CString& strDevId, const CString& strPath)
 {
+	/*
+	{
+		"type": "install",
+		"data": 
+		{
+		}
+	}
+	*/
 	CString errorMessage;
 	const DriverInfo* pInfo = DeviceDatabase::Instance()->FindDriverByDeviceInstanceID(strDevId);
 	if (pInfo == NULL)
@@ -509,7 +537,20 @@ void MainFrame::HandleCommandInstall(const CString& strDevId, const CString& str
 	{
 		m_pDriverInstaller->Start(pInfo->InstallType, strPath);
 	}
-	HandleCommandError(errorMessage);
+	if (errorMessage.IsEmpty())
+	{
+		Json::Value jsonResult;
+		jsonResult["type"] = "install";
+		Json::Value jsonData(Json::objectValue);
+		jsonResult["data"] = jsonData;
+		CStringA message = jsonResult.toStyledString().c_str();
+		message += "\n";
+		m_pSocketService->SendString(message);
+	}
+	else 
+	{
+		HandleCommandError(errorMessage);
+	}
 }
 
 static void GetDeviceInfoJson(const DeviceInfo* pInfo, Json::Value& jsonInfo)
@@ -535,8 +576,25 @@ static void GetDeviceInfoJson(const DeviceInfo* pInfo, Json::Value& jsonInfo)
 
 void MainFrame::HandleCommandList(const CString& strDevId)
 {
+	/*
+	{
+		"type": "list",
+		"data":  [
+				{
+					"deviceInstanceId": "device instance id 1",
+					"state": "installed" | "failed" | "notInstalled"
+				}, 
+				{
+					"deviceInstanceId": "device instance id 2",
+					"state": "installed" | "failed" | "notInstalled"
+				}, 
+				...
+			}
+		]
+	}
+	*/
 	Json::Value jsonResult;
-	jsonResult["type"] = "result";
+	jsonResult["type"] = "list";
 	Json::Value jsonData(Json::arrayValue);
 
 	Json::arrayValue;
@@ -593,9 +651,18 @@ void MainFrame::HandleCommandMessage()
 
 void MainFrame::HandleCommandError(const CString& strError)
 {
+	/*
+	{
+		"type": "error",
+		"data": 
+		{
+			"errorMessage":"error message",
+		}
+	}
+	*/
 	CStringA utf8Error = CStringToUTF8String(strError);
 	Json::Value jsonResult;
-	jsonResult["type"] = "result";
+	jsonResult["type"] = "error";
 	Json::Value jsonData;
 	jsonData["errorMessage"] = static_cast<LPCSTR>(utf8Error);
 	jsonResult["data"] = jsonData;
@@ -611,9 +678,19 @@ void MainFrame::SendSocketMessageNotification()
 
 void MainFrame::AddSocketMessageDeviceChange(const CString& strEventType, const CString& strDevId)
 {
+	/*
+	{
+		"type":"deviceChanged",
+		"data": 
+		{
+			// arrival - A new device is ready to use, because either the device is inserted or its driver is just installed.
+			"eventType": "arrived" | "removed",
+			"deviceInstanceId": "device instance id"
+		 }
+	}
+	*/
 	Json::Value jsonMessage;
-	jsonMessage["type"] = "message";
-	jsonMessage["name"] = "deviceChanged";
+	jsonMessage["type"] = "deviceChanged";
 	Json::Value jsonData;
 	jsonData["eventType"] = static_cast<LPCSTR>(CStringToUTF8String(strEventType));
 	jsonData["deviceInstanceId"] = static_cast<LPCSTR>(CStringToUTF8String(strDevId));
@@ -624,9 +701,17 @@ void MainFrame::AddSocketMessageDeviceChange(const CString& strEventType, const 
 
 void MainFrame::AddSocketMessageDriverInstalled(const CString& strErrorMessage)
 {
+	/*
+	{
+		"type": "driverInstalled",
+		"data": 
+		{
+			"errorMessage": "Error Message"
+		}
+	}
+	*/
 	Json::Value jsonMessage;
-	jsonMessage["type"] = "message";
-	jsonMessage["name"] = "driverInstalled";
+	jsonMessage["type"] = "driverInstalled";
 	Json::Value jsonData;
 	jsonData["errorMessage"] = static_cast<LPCSTR>(CStringToUTF8String(strErrorMessage));
 	jsonMessage["data"] = jsonData;

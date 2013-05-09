@@ -2,7 +2,7 @@
 <Window size="190,340" sizebox="4,4,4,4" caption="0,0,0,40" mininfo="190,341" maxinfo="190,341" roundcorner="4,4">
     <Font name="宋体" size="12" bold="false" italic="false" default="true" />
     <Font name="黑体" size="12" bold="false" italic="false" />
-	<Font name="黑体" size="8" bold="true" italic="false" />
+    <Font name="黑体" size="8" bold="true" italic="false" />
     <Default name="VScrollBar" value="button1normalimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;0,0,16,16&apos;&quot; button1hotimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;16,0,32,16,16&apos;&quot; button1pushedimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;32,0,48,16&apos;&quot; button2normalimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;0,32,16,48&apos;&quot; button2hotimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;16,32,32,48&apos;&quot; button2pushedimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;32,32,48,48&apos;&quot; thumbnormalimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;0,48,16,64&apos; corner=&apos;0,2,0,2&apos;&quot; thumbhotimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;16,48,32,64&apos; corner=&apos;0,2,0,2&apos;&quot; thumbpushedimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;32,48,48,64&apos; corner=&apos;0,2,0,2&apos;&quot; bknormalimage=&quot;file=&apos;scrollbar.png&apos; source=&apos;0,16,16,32&apos;&quot;" />
     <VerticalLayout width="190" height="341" bkimage="file=&apos;background.png&apos; mask=&apos;0xff00ffff&apos;">
         <VerticalLayout height="341">
@@ -15,6 +15,7 @@
                     <ListHeaderItem text="Driver" width="74" height="20" minwidth="16" textcolor="#FF000000" sepwidth="4" align="left" />
                 </ListHeader>
             </List>
+            <Label name="clientNumLabel" text="Clients: 0" float="true" pos="31,70,0,0" width="70" height="20" textcolor="#FF000000" disabledtextcolor="#FFA7A6AA" />
         </VerticalLayout>
     </VerticalLayout>
 </Window>

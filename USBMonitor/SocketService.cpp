@@ -152,6 +152,19 @@ void SocketService::SendString(const char* utf8String)
 	m_csSendString.Unlock();
 }
 
+int SocketService::GetClientCount() const
+{
+	int count = 0;
+	for(int i=0; i<MAX_CONNECTION; i++)
+	{
+		if (m_SocketManager[i].IsOpen() && m_pCurServer != &m_SocketManager[i])
+		{
+			++count;
+		}
+	}
+	return count;
+}
+
 void SocketService::OnStringReceived(const char* utf8String)
 {
 	m_pCallback->OnStringReceived(utf8String);
@@ -164,6 +177,7 @@ void SocketService::OnEvent(UINT uEvent, CSocketManager* pManager)
 	case EVT_CONSUCCESS:
 		// When a new connection is accepted, the server will be closed. So we need to start a new server.
 		StartNewServer();
+		m_pCallback->OnConnect();
 		break;
 	case EVT_CONFAILURE: // Fall through
 	case EVT_CONDROP:
@@ -173,6 +187,7 @@ void SocketService::OnEvent(UINT uEvent, CSocketManager* pManager)
 		{
 			StartNewServer();
 		}
+		m_pCallback->OnDisconnect();
 		break;
 	case EVT_ZEROLENGTH:
 		TRACE( _T("Zero Length Message\n") );

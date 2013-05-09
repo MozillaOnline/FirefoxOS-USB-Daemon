@@ -1,0 +1,152 @@
+<html>
+  <head>
+    <meta http-equiv=Content-Type  content="text/html; charset=utf8" >
+	<title>
+	  DPInst Return Code
+	</title>
+	<style>
+      body {
+        font-family: 'Times New Roman';
+      }
+      tr:first-child{
+		font-weight: bold;
+        background-color: #EDEDED;
+      }
+      td:first-child {
+		width: 120px;
+      }
+      td {
+		padding: 10px 8px;
+		border-bottom: 1px solid #DBDBDB;
+      }
+	</style>
+  </head>
+  <body>
+    <h1>
+      DPInst Return Code 
+    </h1>
+    <a href="http://msdn.microsoft.com/en-us/library/windows/hardware/ff544790%28v=vs.85%29.aspx">
+      http://msdn.microsoft.com/en-us/library/windows/hardware/ff544790%28v=vs.85%29.aspx
+    </a>
+    <p>
+      When DPInst finishes an installation, the DPInst executable file returns a return code to the application that call it. You can use this return code to determine the status of the driver installation when you run DPInst at a command prompt or call it from a higher-level installation application. 
+    </p>
+    <p>
+      The return code is a DWORD (0xWWXXYYZZ), where the meaning of the four single-byte fields 0xWW, 0xXX, 0xYY, and 0xZZ are defined in the following table. 
+    </p>
+    <table>
+      <tr>
+        <td>
+          Field
+        </td>
+        <td>
+          Meaning
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0xWW
+        </td>
+        <td>
+          If a driver package could not be installed, the 0x80 bit is set. If a computer restart is necessary, the 0x40 bit is set. Otherwise, no bits are set.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0xXX
+        </td>
+        <td>
+          The number of driver packages that could not be installed.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0xYY
+        </td>
+        <td>
+          The number of driver packages that were copied to the 
+          <a href="http://msdn.microsoft.com/en-us/library/windows/hardware/ff543652(v=vs.85).aspx">
+            DIFx driver store
+          </a>
+          but were not installed on a device.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0xZZ
+        </td>
+        <td>
+          The number of driver packages that were installed on a device.
+        </td>
+      </tr>
+    </table>
+    <p>
+      The following table lists some example return codes and their meanings. 
+    </p>
+    <table>
+      <tr>
+        <td>
+          Example return code
+        </td>
+        <td>
+          Meaning
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0x00000001
+        </td>
+        <td>
+          One driver package was present and was successfully installed. 
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0x00000002
+        </td>
+        <td>
+          Two driver packages were present and were successfully installed. 
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0x40000002
+        </td>
+        <td>
+          Two driver packages were present and were successfully installed on devices. A computer restart is required to complete the installation. 
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0x00000100
+        </td>
+        <td>
+          One driver package was present and was copied to the 
+          <a href="http://msdn.microsoft.com/en-us/library/windows/hardware/ff543652(v=vs.85).aspx">
+            DIFx driver store
+          </a>
+          , but it was not installed on a device. 
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0x80010000
+        </td>
+        <td>
+          One driver package was present, but it could not be installed. 
+        </td>
+      </tr>
+      <tr>
+        <td>
+          0xC0010001
+        </td>
+        <td>
+          One driver package could not be installed and one driver package was installed. A computer restart is required to complete the installation. 
+        </td>
+      </tr>
+    </table>
+    <p>
+      Build date: 4/23/2013 
+    </p>
+  </body>
+</html>

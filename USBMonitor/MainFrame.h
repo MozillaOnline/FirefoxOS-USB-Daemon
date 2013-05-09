@@ -78,6 +78,8 @@ public:
 	// 
 	// Overrides DriverInstallerCallback
 	//
+	virtual void OnConnect() override;
+	virtual void OnDisconnect() override;
 	virtual void OnDriverInstalled(const CString& errorMessage) override;
 
 public:
@@ -93,6 +95,9 @@ private:
 
 	// Update the device list
 	void UpdateDeviceList();
+
+	// Update the socket client number
+	void UpdateClientNum();
 
 	// WM_TIMER Handler
 	void OnTimer(UINT_PTR nIDEvent);
@@ -119,6 +124,7 @@ private:
 
 	DeviceMonitor* m_pDeviceMonitor;
 
+	CLabelUI* m_pClientNumLabel;
 	CLabelUI* m_pDeviceStatusLabel;
 	CListUI* m_pDeviceList;
 

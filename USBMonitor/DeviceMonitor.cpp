@@ -426,7 +426,11 @@ bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevI
 		pDevInfo->DeviceDescription = sDeviceDescription;
 		pDevInfo->AndroidHardwareID = GetDevNodePropertyString(dnChild, CM_DRP_HARDWAREID);
 		pDevInfo->InstallState = _tcstol((LPCTSTR)GetDevNodePropertyString(dnChild, CM_DRP_INSTALL_STATE), NULL, 16);
-
+		// Sometimes InstallState shows the driver is installed, but no driver exits. We need to check the CM_DRP_DRIVER property to ensure the driver is installed correctly.
+		if (pDevInfo->InstallState == CM_INSTALL_STATE_INSTALLED && GetDevNodePropertyString(dnChild, CM_DRP_DRIVER).IsEmpty())
+		{
+			pDevInfo->InstallState = CM_INSTALL_STATE_FAILED_INSTALL;
+		}
 		TRACE(_T("Android device found!\nDevice ID:%s\nDescription: %s\nHardware ID: %s\nDriver install state: 0x%lx\n\n"), szDeviceID, (LPCTSTR)pDevInfo->DeviceDescription, (LPCTSTR)pDevInfo->AndroidHardwareID, pDevInfo->InstallState);
 
 		return true;
