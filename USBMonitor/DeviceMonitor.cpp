@@ -397,6 +397,8 @@ bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevI
 		return false;
 	}
 
+	bool found = false;
+	bool candidateFound = false;
 	do
 	{
 		/**
@@ -404,6 +406,9 @@ bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevI
 		 * and the device class is empty.
 		 * Otherwise the device description is specified by the driver, and the class GUID is {f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}.
 		 * As a result, we can find the android device by checking either its decription or device class GUID.
+		 * Some sub device, which is not an android ADB interface, will also have the device description of "Android" if its driver
+		 * is not installed. 
+		 * To find the correct android device, we should find by the class GUID first, and then by the description. 
 		 */
 		CString sDeviceDescription = GetDevNodePropertyString(dnChild, CM_DRP_DEVICEDESC);
 		CString sLowercaseDesc = sDeviceDescription;
@@ -411,9 +416,16 @@ bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevI
 
 		CString sClassGUID = GetDevNodePropertyString(dnChild, CM_DRP_CLASSGUID);
 		
-		// Check if the sub device is the android.
-		if (sLowercaseDesc.Find(_T("android")) == -1 && sClassGUID != _T("{f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}"))
+		if (sClassGUID == _T("{f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}"))
 		{
+			// We find an android device
+			found = true;
+		}
+		else if (!candidateFound && sLowercaseDesc.Find(_T("android")) != -1)
+		{
+			// A candidate was found. If no android device will be found, we will use this candidate.
+			candidateFound = true;
+		} else {
 			continue;
 		}
 
@@ -433,9 +445,12 @@ bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevI
 		}
 		TRACE(_T("Android device found!\nDevice ID:%s\nDescription: %s\nHardware ID: %s\nDriver install state: 0x%lx\n\n"), szDeviceID, (LPCTSTR)pDevInfo->DeviceDescription, (LPCTSTR)pDevInfo->AndroidHardwareID, pDevInfo->InstallState);
 
-		return true;
+		if (found)
+		{
+			return true;
+		}
 	}
 	while(CM_Get_Sibling(&dnChild, dnChild, 0) == CR_SUCCESS);
 
-	return false;
+	return candidateFound;
 }
