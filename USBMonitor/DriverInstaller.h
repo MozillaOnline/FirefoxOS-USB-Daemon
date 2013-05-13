@@ -5,7 +5,7 @@
 class DriverInstallerCallback abstract
 {
 public:
-	virtual void OnDriverInstalled(const CString& errorMessage) = 0;
+	virtual void OnDriverInstalled(const CString& errorName, const CString& errorMessage) = 0;
 };
 
 class DriverInstaller: public DriverInstallerThreadCallback

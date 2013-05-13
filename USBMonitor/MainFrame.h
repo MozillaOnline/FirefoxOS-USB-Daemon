@@ -80,7 +80,7 @@ public:
 	//
 	virtual void OnConnect() override;
 	virtual void OnDisconnect() override;
-	virtual void OnDriverInstalled(const CString& errorMessage) override;
+	virtual void OnDriverInstalled(const CString& errorName, const CString& errorMessage) override;
 
 public:
 	//
@@ -117,7 +117,7 @@ private:
 	void SendSocketMessageNotification();
 
 	void AddSocketMessageDeviceChange(const CString& strEventType, const CString& strDevId);
-	void AddSocketMessageDriverInstalled(const CString& strErrorMessage);
+	void AddSocketMessageDriverInstalled(const CString& strErrorName, const CString& strErrorMessage);
 
 	void EnqueuePendingNotification(const CStringA& strMessage);
 	CStringA DequeuePendingNotification();

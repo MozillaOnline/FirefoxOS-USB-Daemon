@@ -236,9 +236,9 @@ void MainFrame::OnDisconnect()
 	UpdateClientNum();
 }
 
-void MainFrame::OnDriverInstalled(const CString& errorMessage)
+void MainFrame::OnDriverInstalled(const CString& errorName, const CString& errorMessage)
 {
-	AddSocketMessageDriverInstalled(errorMessage);
+	AddSocketMessageDriverInstalled(errorName, errorMessage);
 }
 
 void MainFrame::OnStringReceived(const char* utf8String)
@@ -699,13 +699,14 @@ void MainFrame::AddSocketMessageDeviceChange(const CString& strEventType, const 
 	EnqueuePendingNotification(message);
 }
 
-void MainFrame::AddSocketMessageDriverInstalled(const CString& strErrorMessage)
+void MainFrame::AddSocketMessageDriverInstalled(const CString& strErrorName, const CString& strErrorMessage)
 {
 	/*
 	{
 		"type": "driverInstalled",
 		"data": 
 		{
+			"errorName": "Error Name",
 			"errorMessage": "Error Message"
 		}
 	}
@@ -713,6 +714,7 @@ void MainFrame::AddSocketMessageDriverInstalled(const CString& strErrorMessage)
 	Json::Value jsonMessage;
 	jsonMessage["type"] = "driverInstalled";
 	Json::Value jsonData;
+	jsonData["errorName"] = static_cast<LPCSTR>(CStringToUTF8String(strErrorName));
 	jsonData["errorMessage"] = static_cast<LPCSTR>(CStringToUTF8String(strErrorMessage));
 	jsonMessage["data"] = jsonData;
 	CStringA message = jsonMessage.toStyledString().c_str();

@@ -83,9 +83,11 @@ void DriverInstaller::OnThreadTerminated(bool success)
 	TRACE(_T("DriverInstaller::OnThreadTerminated\nError Code: %x\nError Message:\n\n"),
 		m_pThread->GetExitCode(),
 		m_pThread->GetErrorMessge());
+	CString errorName;
 	CString errorMessage = m_pThread->GetErrorMessge();
 	if (errorMessage.IsEmpty())
 	{
+		// Generate error message and error name from error code.
 		switch(m_type)
 		{
 		case DPINST:
@@ -94,10 +96,12 @@ void DriverInstaller::OnThreadTerminated(bool success)
 				DWORD dwResult = dwCode >> 24;
 				if (dwCode == 0 || (dwResult & 0x80))
 				{
+					errorName = _T("DPINST_NOT_INSTALLED");
 					errorMessage = _T("[DPINST] Not installed.");
 				}
 				else if (dwResult & 0x40)
 				{
+					errorName = _T("DPINST_NEED_RESTART");
 					errorMessage = _T("[DPINST] Restart needed.");
 				}
 			}
@@ -106,13 +110,26 @@ void DriverInstaller::OnThreadTerminated(bool success)
 			{
 				if (m_pThread->GetExitCode() != 0)
 				{
+					errorName = _T("EXE_ERROR");
 					errorMessage.Format(_T("[EXE] Failed with error code %x"), m_pThread->GetExitCode());
 				}
 			}
 			break;
 		}
 	}
-	m_pCallback->OnDriverInstalled(errorMessage);
+	else
+	{
+		// Generate error name from error message
+		if (errorMessage == _T("No exit code."))
+		{
+			errorName = _T("NO_RETURN_CODE");
+		}
+		else
+		{
+			errorName = _T("ERROR_MESSAGE");
+		}
+	}
+	m_pCallback->OnDriverInstalled(errorName, errorMessage);
 	m_cs.Lock();
 	m_bIsRunning = false;
 	m_cs.Unlock();
