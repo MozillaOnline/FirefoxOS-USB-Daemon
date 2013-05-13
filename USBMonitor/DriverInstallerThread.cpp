@@ -111,7 +111,7 @@ BOOL DriverInstallerThread::OnTask()
 				// Could not get exit code.
 				TRACE(_T("Executed command but couldn't get exit code.\nCommand=%s\n"), (LPCTSTR)(LPCTSTR)GetCommandLine(m_strFile, m_strParams));
 				m_mutex.Lock();
-				m_strErrorMessage = _T("Couldn't get exit code.");
+				m_strErrorMessage = _T("No exit code.");
 				m_mutex.Unlock();
 			}
 		}

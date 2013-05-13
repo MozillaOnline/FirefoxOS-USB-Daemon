@@ -90,10 +90,11 @@ void DriverInstaller::OnThreadTerminated(bool success)
 		{
 		case DPINST:
 			{
-				DWORD dwResult = m_pThread->GetExitCode() >> 24; 
-				if (dwResult & 0x80)
+				DWORD dwCode = m_pThread->GetExitCode();
+				DWORD dwResult = dwCode >> 24;
+				if (dwCode == 0 || (dwResult & 0x80))
 				{
-					errorMessage = _T("[DPINST] Driver package could not be installed.");
+					errorMessage = _T("[DPINST] Not installed.");
 				}
 				else if (dwResult & 0x40)
 				{
@@ -105,7 +106,7 @@ void DriverInstaller::OnThreadTerminated(bool success)
 			{
 				if (m_pThread->GetExitCode() != 0)
 				{
-					errorMessage.Format(_T("Intalled failed with error code %x"), m_pThread->GetExitCode());
+					errorMessage.Format(_T("[EXE] Failed with error code %x"), m_pThread->GetExitCode());
 				}
 			}
 			break;
