@@ -33,6 +33,5 @@ private:
 
 	bool m_bRunning;
 	CComCriticalSection m_cs;
-	CString m_strFirefoxPath;
 };
 

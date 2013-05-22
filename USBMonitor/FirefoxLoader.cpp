@@ -7,10 +7,6 @@ FirefoxLoader FirefoxLoader::s_Instance;
 FirefoxLoader::FirefoxLoader(void)
 	: m_bRunning(false)
 {
-	// Get firefox executable file path from ini file
-	CString fileName = CPaintManagerUI::GetInstancePath() + DRIVER_MANAGER_INI_FILE;
-	::GetPrivateProfileString(_T("firefox"), _T("path"), _T("c:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe"), m_strFirefoxPath.GetBuffer(MAX_PATH), MAX_PATH, static_cast<LPCTSTR>(fileName));
-	m_strFirefoxPath.ReleaseBuffer();
 	m_cs.Init();
 }
 
@@ -36,7 +32,13 @@ void FirefoxLoader::TryLoadInternal()
 	m_bRunning = true;
 	m_cs.Unlock();
 
-	if (m_strFirefoxPath.IsEmpty())
+	// Get firefox executable file path from ini file
+	CString strFirefoxPath;
+	CString fileName = CPaintManagerUI::GetInstancePath() + DRIVER_MANAGER_INI_FILE;
+	::GetPrivateProfileString(_T("firefox"), _T("path"), _T("c:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe"), strFirefoxPath.GetBuffer(MAX_PATH), MAX_PATH, static_cast<LPCTSTR>(fileName));
+	strFirefoxPath.ReleaseBuffer();
+
+	if (strFirefoxPath.IsEmpty())
 	{
 		m_cs.Lock();
 		m_bRunning = false;
@@ -45,7 +47,7 @@ void FirefoxLoader::TryLoadInternal()
 	}
 
 	// Checi if the process is already running
-	DWORD pid = FindProcess(m_strFirefoxPath);
+	DWORD pid = FindProcess(strFirefoxPath);
 	if (pid)
 	{
 		// Push the process window to the foreground
@@ -68,7 +70,7 @@ void FirefoxLoader::TryLoadInternal()
 		return;
 	}
 
-	::ShellExecute(NULL, _T("open"), m_strFirefoxPath, NULL, NULL, SW_SHOW);
+	::ShellExecute(NULL, _T("open"), strFirefoxPath, NULL, NULL, SW_SHOW);
 	m_cs.Lock();
 	m_bRunning = false;
 	m_cs.Unlock();
@@ -77,7 +79,7 @@ void FirefoxLoader::TryLoadInternal()
 
 DWORD FirefoxLoader::FindProcess(const CString& strProcessPath)
 {
-  DWORD aProcesses[1024], cbNeeded, cbMNeeded;
+  DWORD aProcesses[1024], cbNeeded;
   HANDLE hProcess;
   TCHAR szPathBuffer[MAX_PATH + 1];
 
@@ -145,6 +147,8 @@ static BOOL CALLBACK WndEnumProc(HWND hWnd, LPARAM lParam)
 		pResult->hWnd = hWnd;
 		return FALSE;
 	}
+
+	return TRUE;
 }
 
 HWND FirefoxLoader::FindWindowByProcessId(DWORD dwProcessId)
