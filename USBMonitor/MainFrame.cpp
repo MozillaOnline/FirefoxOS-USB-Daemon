@@ -58,18 +58,7 @@ void MainFrame::OnPrepare(TNotifyUI& msg)
 	ASSERT(m_pDeviceList);
 	m_pDeviceList->SetTextCallback(this);
 
-	// Register to get notification when the supported devices are changed.
-	m_pDeviceMonitor->AddObserver(this);
-
 	UpdateDeviceList();
-
-	// Load firefox if there exits firefox OS devices
-	if (m_pDeviceMonitor->GetDeviceCount() > 0)
-	{
-		FirefoxLoader::TryLoad();
-	}
-
-	m_pSocketService->Start();
 }
 
 void MainFrame::InitWindow()
@@ -79,6 +68,17 @@ void MainFrame::InitWindow()
 	// the WM_DEVICECHANGE notification even if a device doesn't 
 	// have hardware driver installed.
 	m_pDeviceMonitor->RegisterToWindow(m_hWnd);
+
+	// Register to get notification when the supported devices are changed.
+	m_pDeviceMonitor->AddObserver(this);
+
+	m_pSocketService->Start();
+
+	// Load firefox if there exits firefox OS devices
+	if (m_pDeviceMonitor->GetDeviceCount() > 0)
+	{
+		FirefoxLoader::TryLoad();
+	}
 }
 
 void MainFrame::OnFinalMessage(HWND hWnd)

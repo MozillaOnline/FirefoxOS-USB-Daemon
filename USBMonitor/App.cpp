@@ -56,7 +56,10 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	pMainFrame->Create(NULL, strAppTitle, UI_WNDSTYLE_FRAME, 0L, 0, 0, 190, 341);
 	pMainFrame->CenterWindow();
 	pMainFrame->SetIcon(IDI_USBMONITOR);
-	pMainFrame->ShowWindow();
+
+	CString fileName = CPaintManagerUI::GetInstancePath() + DRIVER_MANAGER_INI_FILE;
+	BOOL showUI = ::GetPrivateProfileInt(_T("app"), _T("show_ui"), 0,  static_cast<LPCTSTR>(fileName));
+	pMainFrame->ShowWindow(showUI);
 
 	CPaintManagerUI::MessageLoop();
 
