@@ -172,7 +172,10 @@ void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 
 	CString text;
 	text.Format(_T("%s connected"), DeviceInfo::GetSerialNumber(lpstrDevId));
-	m_pDeviceStatusLabel->SetText(text);
+	if (m_pDeviceStatusLabel)
+	{
+		m_pDeviceStatusLabel->SetText(text);
+	}
 }
 
 // A supported device has been removed.
@@ -182,7 +185,10 @@ void MainFrame::OnDeviceRemoved(LPCTSTR lpstrDevId)
 
 	CString text;
 	text.Format(_T("%s disconnected"), DeviceInfo::GetSerialNumber(lpstrDevId));
-	m_pDeviceStatusLabel->SetText(text);
+	if (m_pDeviceStatusLabel)
+	{
+		m_pDeviceStatusLabel->SetText(text);
+	}
 
 	UpdateDeviceList();
 }
@@ -355,6 +361,11 @@ void MainFrame::SetupWindowRegion()
 
 void MainFrame::UpdateDeviceList()
 {
+	if (m_pDeviceList == NULL)
+	{
+		return;
+	}
+
 	m_pDeviceList->RemoveAll();
 
 	int count = m_pDeviceMonitor->GetDeviceCount();
@@ -375,7 +386,10 @@ void MainFrame::UpdateClientNum()
 {
 	CString message;
 	message.Format(_T("Clients: %d"), m_pSocketService->GetClientCount());
-	m_pClientNumLabel->SetText(message);
+	if (m_pClientNumLabel)
+	{
+		m_pClientNumLabel->SetText(message);
+	}
 }
 
 void MainFrame::OnTimer(UINT_PTR nIDEvent)
