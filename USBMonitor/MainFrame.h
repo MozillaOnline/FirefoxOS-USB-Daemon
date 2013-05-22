@@ -128,7 +128,7 @@ private:
 	CLabelUI* m_pDeviceStatusLabel;
 	CListUI* m_pDeviceList;
 
-	CAtlArray<MainThreadFunc> m_executeOnMainThreadFunctions;
+	std::vector<MainThreadFunc> m_executeOnMainThreadFunctions;
 
 	// The device arrival event will be send to the socket client after a short detail to ensure the client get 
 	// the correct driver state and avoid sending duplicated events.

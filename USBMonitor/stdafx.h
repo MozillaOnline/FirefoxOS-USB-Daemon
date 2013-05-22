@@ -50,6 +50,9 @@
 // std::function
 #include <functional>
 
+// std::vector
+#include <vector>
+
 // Debugging macros, such ASSERT, TRACE...
 #include "debug.h"
 

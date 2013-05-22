@@ -40,7 +40,7 @@ MainFrame MainFrame::s_instance;
 void MainFrame::ExecuteOnUIThread(MainThreadFunc func)
 {
 	m_csExecuteOnUIThread.Lock();
-	m_executeOnMainThreadFunctions.Add(func);
+	m_executeOnMainThreadFunctions.push_back(func);
 	m_csExecuteOnUIThread.Unlock();
 	::PostMessage(GetHWND(), WM_EXECUTE_ON_MAIN_THREAD, NULL, NULL);
 }
@@ -419,11 +419,11 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 void MainFrame::OnExecuteOnMainThread()
 {
 	m_csExecuteOnUIThread.Lock();
-	while (m_executeOnMainThreadFunctions.GetCount() > 0) 
+	while (m_executeOnMainThreadFunctions.size() > 0) 
 	{
-		MainThreadFunc func = m_executeOnMainThreadFunctions[0];
+		MainThreadFunc func = m_executeOnMainThreadFunctions.front();
 		func();
-		m_executeOnMainThreadFunctions.RemoveAt(0);
+		m_executeOnMainThreadFunctions.erase(m_executeOnMainThreadFunctions.begin());
 	}
 	m_csExecuteOnUIThread.Unlock();
 }
