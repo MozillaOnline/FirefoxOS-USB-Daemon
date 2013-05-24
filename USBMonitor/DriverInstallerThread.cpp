@@ -42,6 +42,27 @@ static CString GetCommandLine(const CString& strFile, const CString& strEncodedP
 	return result;
 }
 
+// Try to find new devices
+static BOOL ScanDeviceChanes()
+{
+	DEVINST devInst;
+	CONFIGRET status;
+
+	status = CM_Locate_DevNode(&devInst, NULL, CM_LOCATE_DEVNODE_NORMAL);
+	if (status != CR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	status = CM_Reenumerate_DevNode(devInst,0);
+	if (status != CR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 BOOL DriverInstallerThread::OnTask()
 {
 	m_mutex.Lock();
@@ -114,6 +135,8 @@ BOOL DriverInstallerThread::OnTask()
 				m_strErrorMessage = _T("No exit code.");
 				m_mutex.Unlock();
 			}
+
+			ScanDeviceChanes();
 		}
 		else
 		{
