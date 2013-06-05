@@ -87,21 +87,17 @@ BOOL DriverInstallerThread::OnTask()
 	{
 		// CreateProcess() failed
 		// Get the error from the system
-		LPVOID lpMsgBuf;
+		TCHAR msgBuf[1024];
 		DWORD dw = GetLastError();
-		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 
-			NULL, dw, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &lpMsgBuf, 0, NULL);
+		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 
+			NULL, dw, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), msgBuf, sizeof(msgBuf)/sizeof(TCHAR), NULL);
 
 		// Display the error
-		CString strError = (LPTSTR) lpMsgBuf;
-		TRACE(_T("Failed at ShellExecuteEx()\nCommand=%s\nMessage=%s\n\n"), (LPCTSTR)GetCommandLine(m_strFile, m_strParams), strError);
+		TRACE(_T("Failed at ShellExecuteEx()\nCommand=%s\nMessage=%s\n\n"), (LPCTSTR)GetCommandLine(m_strFile, m_strParams), msgBuf);
 		
 		m_mutex.Lock();
-		m_strErrorMessage = strError;
+		m_strErrorMessage = msgBuf;
 		m_mutex.Unlock();
-
-		// Free resources created by the system
-		LocalFree(lpMsgBuf);
 	}
 	else
 	{
