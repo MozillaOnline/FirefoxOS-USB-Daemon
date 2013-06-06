@@ -22,12 +22,10 @@ public:
 		, m_pCallback(pCallback)
 		, m_pCurServer(NULL)
 	{
-		m_csSendString.Init();
 	}
 
 	virtual ~SocketService() 
 	{
-		m_csSendString.Term();
 	}
 
 	void Start();
@@ -68,5 +66,5 @@ private:
 	static const unsigned int MAX_CONNECTION = 2;
 	CSocketManager m_SocketManager[MAX_CONNECTION];
 	CSocketManager* m_pCurServer;
-	CComCriticalSection m_csSendString;
+	CCriticalSection m_csSendString;
 };

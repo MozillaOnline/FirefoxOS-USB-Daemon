@@ -13,18 +13,10 @@ MainFrame::MainFrame(void)
 	m_pDeviceMonitor = new DeviceMonitor();
 	m_pDriverInstaller = new DriverInstaller(this);
 	m_pSocketService = new SocketService(this);
-	m_csExecuteOnUIThread.Init();
-	m_csSocket.Init();
-	m_csDeviceArrivalEvent.Init();
-	m_csPendingNotifications.Init();
 }
 
 MainFrame::~MainFrame(void)
 {
-	m_csPendingNotifications.Term();
-	m_csDeviceArrivalEvent.Term();
-	m_csSocket.Term();
-	m_csExecuteOnUIThread.Term();
 	delete m_pDeviceMonitor;
 	delete m_pDriverInstaller;
 	delete m_pSocketService;
@@ -39,9 +31,9 @@ MainFrame MainFrame::s_instance;
 
 void MainFrame::ExecuteOnUIThread(MainThreadFunc func)
 {
-	m_csExecuteOnUIThread.Lock();
+	m_csExecuteOnUIThread.Enter();
 	m_executeOnMainThreadFunctions.push_back(func);
-	m_csExecuteOnUIThread.Unlock();
+	m_csExecuteOnUIThread.Leave();
 	::PostMessage(GetHWND(), WM_EXECUTE_ON_MAIN_THREAD, NULL, NULL);
 }
 
@@ -154,21 +146,21 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
 {
 	// Check if the event is duplicated.
-	m_csDeviceArrivalEvent.Lock();
+	m_csDeviceArrivalEvent.Enter();
 	CString strDevId = lpstrDevId;
 	int n = m_deviceArrivalEventQueue.GetCount();
 	for (int i = 0; i < n; i++)
 	{
 		if (m_deviceArrivalEventQueue[i] == strDevId)
 		{
-			m_csDeviceArrivalEvent.Unlock();
+			m_csDeviceArrivalEvent.Leave();
 			return;
 		}
 	}
 	// Add a short delay to make sure it is ready to get the driver installation state.
 	::SetTimer(this->GetHWND(), DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID, 500, NULL);
 	m_deviceArrivalEventQueue.Add(strDevId);
-	m_csDeviceArrivalEvent.Unlock();
+	m_csDeviceArrivalEvent.Leave();
 
 	CString text;
 	text.Format(_T("%s connected"), DeviceInfo::GetSerialNumber(lpstrDevId));
@@ -261,13 +253,13 @@ void MainFrame::OnStringReceived(const char* utf8String)
 	// Deal with backspace
 	if (strData == _T("\b"))
 	{
-		m_csSocket.Lock();
+		m_csSocket.Enter();
 		int bufferCount = m_strSocketCmdBuffer.GetLength();
 		if (bufferCount > 0)
 		{
 			m_strSocketCmdBuffer.Delete(bufferCount - 1);
 		}
-		m_csSocket.Unlock();
+		m_csSocket.Leave();
 		return;
 	}
 
@@ -275,16 +267,16 @@ void MainFrame::OnStringReceived(const char* utf8String)
 	int cmdEndPos = strData.Find("\n");
 	if (cmdEndPos == -1)
 	{
-		m_csSocket.Lock();
+		m_csSocket.Enter();
 		m_strSocketCmdBuffer.Append(strData);
-		m_csSocket.Unlock();
+		m_csSocket.Leave();
 		return;
 	}
 
-	m_csSocket.Lock();
+	m_csSocket.Enter();
 	CStringA cmdline = m_strSocketCmdBuffer + strData.Mid(0, cmdEndPos);
 	m_strSocketCmdBuffer = strData.Mid(cmdEndPos + 1);
-	m_csSocket.Unlock();
+	m_csSocket.Leave();
 
 	if (cmdline.GetLength() > 0)
 	{
@@ -396,7 +388,7 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 {
 	if (nIDEvent == DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID)
 	{
-		m_csDeviceArrivalEvent.Lock();
+		m_csDeviceArrivalEvent.Enter();
 		::KillTimer(GetHWND(), DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID);
 		while (m_deviceArrivalEventQueue.GetCount() > 0)
 		{
@@ -404,7 +396,7 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 			m_deviceArrivalEventQueue.RemoveAt(0);
 			AddSocketMessageDeviceChange(_T("arrived"), strDevId);
 		}
-		m_csDeviceArrivalEvent.Unlock();
+		m_csDeviceArrivalEvent.Leave();
 
 		// Load firefox if firefox OS devices exits
 		if (m_pDeviceMonitor->GetDeviceCount() > 0)
@@ -418,14 +410,14 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 
 void MainFrame::OnExecuteOnMainThread()
 {
-	m_csExecuteOnUIThread.Lock();
+	m_csExecuteOnUIThread.Enter();
 	while (m_executeOnMainThreadFunctions.size() > 0) 
 	{
 		MainThreadFunc func = m_executeOnMainThreadFunctions.front();
 		func();
 		m_executeOnMainThreadFunctions.erase(m_executeOnMainThreadFunctions.begin());
 	}
-	m_csExecuteOnUIThread.Unlock();
+	m_csExecuteOnUIThread.Leave();
 }
 
 void MainFrame::HandleSocketCommand(const CString& strCmdLine)
@@ -737,21 +729,21 @@ void MainFrame::AddSocketMessageDriverInstalled(const CString& strErrorName, con
 
 void MainFrame::EnqueuePendingNotification(const CStringA& strMessage)
 {
-	m_csPendingNotifications.Lock();
+	m_csPendingNotifications.Enter();
 	m_pendingNotifications.Add(strMessage);
-	m_csPendingNotifications.Unlock();
+	m_csPendingNotifications.Leave();
 	SendSocketMessageNotification();
 }
 
 CStringA MainFrame::DequeuePendingNotification()
 {
 	CStringA head;
-	m_csPendingNotifications.Lock();
+	m_csPendingNotifications.Enter();
 	if (m_pendingNotifications.GetCount() > 0)
 	{
 		head = m_pendingNotifications[0];
 		m_pendingNotifications.RemoveAt(0);
 	}
-	m_csPendingNotifications.Unlock();
+	m_csPendingNotifications.Leave();
 	return head;
 }

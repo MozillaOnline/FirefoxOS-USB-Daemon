@@ -134,19 +134,19 @@ private:
 	// the correct driver state and avoid sending duplicated events.
 	static const UINT_PTR DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID = 0;
 	CAtlArray<CString> m_deviceArrivalEventQueue;
-	CComCriticalSection m_csDeviceArrivalEvent;
+	CCriticalSection m_csDeviceArrivalEvent;
 
 	static const UINT WM_EXECUTE_ON_MAIN_THREAD = WM_USER + 200;
 
 	DriverInstaller* m_pDriverInstaller;
 	
-	CComCriticalSection m_csExecuteOnUIThread;
+	CCriticalSection m_csExecuteOnUIThread;
 
 	SocketService* m_pSocketService;
 	// String buffer to store incomplete socket command
 	CStringA m_strSocketCmdBuffer;
-	CComCriticalSection m_csSocket;
+	CCriticalSection m_csSocket;
 	// Notification strings needed to send to the socket clients.
 	CAtlArray<CStringA> m_pendingNotifications;
-	CComCriticalSection m_csPendingNotifications;
+	CCriticalSection m_csPendingNotifications;
 };

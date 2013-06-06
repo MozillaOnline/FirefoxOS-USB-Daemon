@@ -140,7 +140,7 @@ void SocketService::SendString(const char* utf8String)
 	nLen = min(sizeof(msgProxy.byData) - 1, nLen);
 	memcpy(msgProxy.byData, (LPCSTR)str, nLen + 1);
 
-	m_csSendString.Lock();
+	m_csSendString.Enter();
 	// Send to all clients
 	for(int i=0; i<MAX_CONNECTION; i++)
 	{
@@ -149,7 +149,7 @@ void SocketService::SendString(const char* utf8String)
 			m_SocketManager[i].WriteComm(msgProxy.byData, nLen, INFINITE);
 		}
 	}
-	m_csSendString.Unlock();
+	m_csSendString.Leave();
 }
 
 int SocketService::GetClientCount() const

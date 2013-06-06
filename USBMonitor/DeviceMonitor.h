@@ -68,12 +68,12 @@ public:
 
 	void Lock()
 	{
-		m_cs.Lock();
+		m_cs.Enter();
 	}
 
 	void Unlock()
 	{
-		m_cs.Unlock();
+		m_cs.Leave();
 	}
 
 	/**
@@ -153,6 +153,6 @@ private:
 	// Connected devices list
 	CAtlArray<CAutoPtr<DeviceInfo>> m_aDeviceList;
 
-	CComCriticalSection m_cs;
+	CCriticalSection m_cs;
 };
 

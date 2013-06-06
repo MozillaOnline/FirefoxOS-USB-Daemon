@@ -12,6 +12,8 @@ static bool SetAutoRun(CString sTitle, bool bEnable);
 
 static bool InstanceExits(CString sID);
 
+static BOOL IsUserAdmin();
+
 int APIENTRY _tWinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
                      LPTSTR    lpCmdLine,
@@ -28,16 +30,30 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	CString strCmdLine = lpCmdLine;
 	LPCTSTR TOKENS = _T(" \t");
 	CString param = strCmdLine.Tokenize(TOKENS, curPos);
+	param.MakeLower();
 
-	if (param == _T("install"))
+	if (param == _T("install") || param == _T("uninstall"))
 	{
-		SetAutoRun(strAppTitle, true);
-		return 0;
-	}
-	else if (param == _T("uninstall")) 
-	{
-		SetAutoRun(strAppTitle, false);
-		return 0;
+		if (!IsUserAdmin())
+		{
+			// We need administrator rights to write the registry.
+			TCHAR szFileName[MAX_PATH];
+			if (::GetModuleFileName(NULL, szFileName, MAX_PATH))
+			{
+				::ShellExecute(NULL, _T("runas"), szFileName, static_cast<LPCTSTR>(param), NULL, SW_HIDE);
+			}
+			return 0;
+		}
+		if (param == _T("install"))
+		{
+			SetAutoRun(strAppTitle, true);
+			return 0;
+		}
+		else if (param == _T("uninstall")) 
+		{
+			SetAutoRun(strAppTitle, false);
+			return 0;
+		}
 	}
 
 	// Don't run more than once
@@ -88,6 +104,41 @@ static bool InstanceExits(CString sID)
 		return true;
 	}
 	return false;
+}
+
+/*++ 
+http://msdn.microsoft.com/en-us/library/aa376389%28v=VS.85%29.aspx
+Routine Description: This routine returns TRUE if the caller's
+process is a member of the Administrators local group. Caller is NOT
+expected to be impersonating anyone and is expected to be able to
+open its own process and process token. 
+Arguments: None. 
+Return Value: 
+TRUE - Caller has Administrators local group. 
+FALSE - Caller does not have Administrators local group. --
+*/ 
+static BOOL IsUserAdmin()
+{
+	BOOL b;
+	SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
+	PSID AdministratorsGroup; 
+	b = AllocateAndInitializeSid(
+		&NtAuthority,
+		2,
+		SECURITY_BUILTIN_DOMAIN_RID,
+		DOMAIN_ALIAS_RID_ADMINS,
+		0, 0, 0, 0, 0, 0,
+		&AdministratorsGroup); 
+	if(b) 
+	{
+		if (!CheckTokenMembership( NULL, AdministratorsGroup, &b)) 
+		{
+			b = FALSE;
+		} 
+		FreeSid(AdministratorsGroup); 
+	}
+
+	return(b);
 }
 
 /**

@@ -43,6 +43,8 @@
 #include <atlstr.h>
 // CAtlMap
 #include <atlcoll.h>
+// CCriticalSection
+#include <atlsync.h>
 
 // std::ifstream
 #include <fstream>

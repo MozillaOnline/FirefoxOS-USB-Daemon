@@ -14,13 +14,11 @@ const GUID GUID_DEVINTERFACE_USB_DEVICE \
 DeviceMonitor::DeviceMonitor(void)
 	: m_hDevNotify(NULL)
 {
-	m_cs.Init();
 }
 
 
 DeviceMonitor::~DeviceMonitor(void)
 {
-	m_cs.Term();
 }
 
 void DeviceMonitor::AddObserver(DeviceMonitorObserver* pObserver)
@@ -257,7 +255,7 @@ const DeviceInfo* DeviceMonitor::GetDeviceInfoBySubDeviceId(LPCTSTR lpcstrDevice
 
 void DeviceMonitor::UpdateDeviceList()
 {
-	m_cs.Lock();
+	m_cs.Enter();
 
 	m_aDeviceList.RemoveAll();
 
@@ -268,7 +266,7 @@ void DeviceMonitor::UpdateDeviceList()
                                      (DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
     if (hDeviceInfo == INVALID_HANDLE_VALUE)
     {
-		m_cs.Unlock();
+		m_cs.Leave();
 		return;
 	}
 
@@ -305,7 +303,7 @@ void DeviceMonitor::UpdateDeviceList()
 
 	::SetupDiDestroyDeviceInfoList(hDeviceInfo);
 
-	m_cs.Unlock();
+	m_cs.Leave();
 }
 
 /*
