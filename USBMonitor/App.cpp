@@ -42,15 +42,17 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 			{
 				::ShellExecute(NULL, _T("runas"), szFileName, static_cast<LPCTSTR>(param), NULL, SW_HIDE);
 			}
-			return 0;
 		}
-		if (param == _T("install"))
+		else 
 		{
-			SetAutoRun(strAppTitle, true);
-		}
-		else if (param == _T("uninstall")) 
-		{
-			SetAutoRun(strAppTitle, false);
+			if (param == _T("install"))
+			{
+				SetAutoRun(strAppTitle, true);
+			}
+			else if (param == _T("uninstall")) 
+			{
+				SetAutoRun(strAppTitle, false);
+			}
 		}
 	}
 
