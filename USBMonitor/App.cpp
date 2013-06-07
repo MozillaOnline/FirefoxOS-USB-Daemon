@@ -47,12 +47,10 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 		if (param == _T("install"))
 		{
 			SetAutoRun(strAppTitle, true);
-			return 0;
 		}
 		else if (param == _T("uninstall")) 
 		{
 			SetAutoRun(strAppTitle, false);
-			return 0;
 		}
 	}
 
