@@ -155,31 +155,32 @@ static bool SetAutoRun(CString sTitle, bool bEnable)
 	//Open the Registry key
 	HKEY hKey;
 	LPCTSTR key = _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\");
-	if (::RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_ALL_ACCESS, &hKey))
+	if (ERROR_SUCCESS != ::RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_ALL_ACCESS, &hKey))
 	{
 		return false;
 	}
 
 	//Set the value under the key
+	bool success = false;
 	if (bEnable)
 	{
-		if (::RegSetValueEx(hKey, sTitle, 0, REG_SZ, reinterpret_cast<const BYTE *>(static_cast<LPCTSTR>(sFileName)), (sFileName.GetLength() + 1) * sizeof(TCHAR)))
+		if (ERROR_SUCCESS == ::RegSetValueEx(hKey, sTitle, 0, REG_SZ, reinterpret_cast<const BYTE *>(static_cast<LPCTSTR>(sFileName)), (sFileName.GetLength() + 1) * sizeof(TCHAR)))
 		{
-			return false;
+			success = true;
 		}
 	}
 	else
 	{
-		if (::RegDeleteValue (hKey, sTitle))
+		if (ERROR_SUCCESS == ::RegDeleteValue (hKey, sTitle))
 		{
-			return false;
+			success = true;
 		}
 	}
 
 	// Close the registry key.
 	::RegCloseKey(hKey);	
 
-	return true;
+	return success;
 }
 
 
