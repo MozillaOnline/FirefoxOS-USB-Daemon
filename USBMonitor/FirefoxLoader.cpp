@@ -48,6 +48,7 @@ void FirefoxLoader::TryLoadInternal()
 
 	// Checi if the process is already running
 	DWORD pid = FindProcess(strFirefoxPath);
+	TCHAR szUrl[] = _T("about:ffos");
 	if (pid)
 	{
 		// Push the process window to the foreground
@@ -63,6 +64,7 @@ void FirefoxLoader::TryLoadInternal()
 			{
 				::ShowWindow(hWnd, SW_RESTORE);
 			}
+			::ShellExecute(NULL, _T("open"), strFirefoxPath, szUrl, NULL, SW_SHOW);
 		}
 		m_cs.Lock();
 		m_bRunning = false;
@@ -70,7 +72,7 @@ void FirefoxLoader::TryLoadInternal()
 		return;
 	}
 
-	::ShellExecute(NULL, _T("open"), strFirefoxPath, NULL, NULL, SW_SHOW);
+	::ShellExecute(NULL, _T("open"), strFirefoxPath, szUrl, NULL, SW_SHOW);
 	m_cs.Lock();
 	m_bRunning = false;
 	m_cs.Unlock();
