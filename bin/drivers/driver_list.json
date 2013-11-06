@@ -4,12 +4,20 @@
 			"device_instance_id": "USB\\VID_19D2&PID_1350\\FULL_UNAGI",
 			"android_hardware_id": "USB\\VID_19D2&PID_1350&REV_0231&MI_04,USB\\VID_19D2&PID_1350&MI_04",
 			"driver_download_url": "drivers\\zte_google_usb_driver",
-			"install_type": "dpinst"
+			"install_type": "dpinst",
+			"show_window": false
 		}, {
 			"device_instance_id": "USB\\VID_19D2&PID_1350\\FULL_OTORO",
 			"android_hardware_id": "USB\\VID_19D2&PID_1350&REV_0231&MI_04,USB\\VID_19D2&PID_1350&MI_04",
-			"driver_download_url": "drivers\\zte\\Handset_USB_Driver.exe",
-			"install_type": "exe"
+			"driver_download_url": "drivers\\zte_google_usb_driver",
+			"install_type": "dpinst",
+			"show_window": false
+		}, {
+			"device_instance_id": "USB\\VID_05C6&PID_9025\\MSM7627A",
+			"android_hardware_id": "USB\\VID_05C6&PID_9025&REV_0231&MI_01,USB\\VID_05C6&PID_9025&MI_01",
+			"driver_download_url": "drivers\\Buri_USB_Driver_2.0_2012_04_07\\install.exe",
+			"install_type": "exe",
+			"show_window": false
 		}
 	]
 }
