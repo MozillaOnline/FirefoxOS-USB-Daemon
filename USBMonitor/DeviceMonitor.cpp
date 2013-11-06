@@ -287,16 +287,38 @@ void DeviceMonitor::UpdateDeviceList()
 			break;
 		}
 		pNode->DeviceInstanceId = szBuffer;
-		pNode->DeviceSerialNumber = DeviceInfo::GetSerialNumber(pNode->DeviceInstanceId);
 
-		if (FilterDevice(pNode))
+		bool bMatched = false;
+		// Try to match the device instance ID first.
+		if (DeviceDatabase::Instance()->FindDriverByDeviceInstanceID(pNode->DeviceInstanceId))
 		{
-			if (!GetAndroidSubDeviceInfo(spDevInfoData.DevInst, pNode))
+			if (GetAndroidSubDeviceInfo(spDevInfoData.DevInst, pNode))
+			{
+				bMatched = true;
+			}
+			else
 			{
 				pNode->InstallState = 4;
 				TRACE(_T("Failed to get android sub device!\n"));
 			}
+		}
+		// If the device instance ID doesn't match, try to match the android device hardware ID.
+		else if (GetAndroidSubDeviceInfo(spDevInfoData.DevInst, pNode))
+		{
+			const DriverInfo* pDriverInfo = DeviceDatabase::Instance()->FindDriverByAndroidHardwareID(pNode->AndroidHardwareID);
+			if (pDriverInfo) 
+			{
+				// Before the driver is installed, we sometimes cannot get the device instance ID, so we use the one specified in the driver list file.
+				pNode->AndroidSubDeviceInstanceId = pNode->DeviceInstanceId;
+				pNode->DeviceInstanceId = pDriverInfo->DeviceInstanceId;
+				bMatched = true;
+			}
+		}
+
+		if (bMatched)
+		{
 			m_aDeviceList.Add(pNode);
+			pNode->DeviceSerialNumber = DeviceInfo::GetSerialNumber(pNode->DeviceInstanceId);
 			pNode.Detach();
 		}
     }
@@ -304,15 +326,6 @@ void DeviceMonitor::UpdateDeviceList()
 	::SetupDiDestroyDeviceInfoList(hDeviceInfo);
 
 	m_cs.Leave();
-}
-
-/*
- * Check if the USB is supported.
- * @return true if the device is supported. Otherwise false.
- */
-bool DeviceMonitor::FilterDevice(const DeviceInfo* pDevInfo)
-{
-	return DeviceDatabase::Instance()->FindDriverByDeviceInstanceID(pDevInfo->DeviceInstanceId) != NULL;
 }
 
 /**
@@ -419,7 +432,7 @@ bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevI
 			// We find an android device
 			found = true;
 		}
-		else if (!candidateFound && sLowercaseDesc.Find(_T("android")) != -1)
+		else if (!candidateFound && (sLowercaseDesc.Find(_T("android")) != -1 || sLowercaseDesc.Find(_T("firefox")) != -1))
 		{
 			// A candidate was found. If no android device will be found, we will use this candidate.
 			candidateFound = true;

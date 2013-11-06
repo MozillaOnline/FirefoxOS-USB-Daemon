@@ -74,7 +74,7 @@ BOOL DriverInstallerThread::OnTask()
 	info.cbSize = sizeof(SHELLEXECUTEINFO);
 	info.fMask = SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI | SEE_MASK_NOCLOSEPROCESS;
 	info.hwnd = NULL; // TODO
-	info.lpVerb  = _T("open");
+	info.lpVerb  = _T("runas");
 	info.lpFile = (LPCTSTR)m_strFile;
 	info.lpParameters = (LPCTSTR)m_strParams;
 	info.nShow = m_bShowWindow ? SW_SHOWNORMAL: SW_HIDE;

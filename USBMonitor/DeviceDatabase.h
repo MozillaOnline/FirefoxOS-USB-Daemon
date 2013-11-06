@@ -51,12 +51,15 @@ public:
 
 	const DriverInfo* FindDriverByDeviceInstanceID(const CString& id) const;
 
+	const DriverInfo* FindDriverByAndroidHardwareID(const CString& id) const;
+
 private:
 	DeviceDatabase(void);
 	~DeviceDatabase(void);
 
 	static DeviceDatabase* s_pInstance;
 
-	CAtlMap<CString, CAutoPtr<DriverInfo>, CElementTraits<CString> > m_driverMap;
+	CAtlMap<CString, CAutoPtr<DriverInfo>, CElementTraits<CString> > m_instanceIDMap;
+	CAtlMap<CString, CAutoPtr<DriverInfo>, CElementTraits<CString> > m_hardwareIDMap;
 };
 

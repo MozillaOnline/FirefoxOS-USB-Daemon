@@ -135,12 +135,6 @@ private:
 	// Get the index of the observer in the oberver list
 	int FindObserver(DeviceMonitorObserver* pObserver);
 
-	/*
-	 * Check if the USB is supported.
-	 * @return true if the device is supported. Otherwise false.
-	 */
-	bool FilterDevice(const DeviceInfo* pDevInfo);
-
 	// Enumerates the sub-devices to find the android sub-device and get its device info.
 	bool GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevInfo);
 

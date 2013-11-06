@@ -44,12 +44,18 @@ bool DeviceDatabase::Load(LPCTSTR strFileName)
 	{
 		Json::Value device = devices[i];
 		CAutoPtr<DriverInfo> pDriverInfo(new DriverInfo());
+		CAutoPtr<DriverInfo> pDriverInfoClone(new DriverInfo());
 		pDriverInfo->DeviceInstanceId = UTF8ToCString(device["device_instance_id"].asCString());
+		pDriverInfoClone->DeviceInstanceId = pDriverInfo->DeviceInstanceId;
 		pDriverInfo->AndroidHardwareID = UTF8ToCString(device["android_hardware_id"].asCString());
+		pDriverInfoClone->AndroidHardwareID = pDriverInfo->AndroidHardwareID;
 		pDriverInfo->DriverDownlaodURL = UTF8ToCString(device["driver_download_url"].asCString());
+		pDriverInfoClone->DriverDownlaodURL = pDriverInfo->DriverDownlaodURL;
 		CString installType = UTF8ToCString(device["install_type"].asCString());
 		pDriverInfo->InstallType = installType == _T("dpinst") ? DPINST : EXE;
-		m_driverMap[pDriverInfo->DeviceInstanceId] = pDriverInfo;
+		pDriverInfoClone->InstallType = pDriverInfo->InstallType;
+		m_instanceIDMap[pDriverInfo->DeviceInstanceId] = pDriverInfo;
+		m_hardwareIDMap[pDriverInfoClone->AndroidHardwareID] = pDriverInfoClone;
 	}
 	return true;
 }
@@ -57,7 +63,18 @@ bool DeviceDatabase::Load(LPCTSTR strFileName)
 const DriverInfo* DeviceDatabase::FindDriverByDeviceInstanceID(const CString& id) const
 {
 
-	auto pair = m_driverMap.Lookup(id);
+	auto pair = m_instanceIDMap.Lookup(id);
+	if (pair == NULL)
+	{
+		return NULL;
+	}
+	return pair->m_value;
+}
+
+const DriverInfo* DeviceDatabase::FindDriverByAndroidHardwareID(const CString& id) const
+{
+
+	auto pair = m_hardwareIDMap.Lookup(id);
 	if (pair == NULL)
 	{
 		return NULL;
