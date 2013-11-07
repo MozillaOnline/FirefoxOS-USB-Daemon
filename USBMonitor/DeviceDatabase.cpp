@@ -38,6 +38,18 @@ bool DeviceDatabase::Load(LPCTSTR strFileName)
 		TRACE(_T("%s\n"), (LPCTSTR)strMsg);
 		return false;
 	}
+
+	CString s_version;//{32bit: "x86","x86.6.1","x86.6.2"}, {64bit:"amd64","amd64.6.1","amd64.6.2"}
+	OSVERSIONINFOEX versionInfo;
+    versionInfo.dwOSVersionInfoSize = sizeof versionInfo;
+    GetVersionEx(reinterpret_cast<OSVERSIONINFO*>(&versionInfo));
+	if (versionInfo.dwMajorVersion == 6 && versionInfo.dwMinorVersion == 2)
+    {
+		s_version = Is64BitWindows() ? "amd64.6.2" : "x86.6.2";
+	} else {
+		s_version = Is64BitWindows() ? "amd64" : "x86";
+	}
+
 	Json::Value devices = root["devices"];
 	int nDevice = devices.size();
 	for (int i = 0; i < nDevice; i++)
@@ -49,13 +61,24 @@ bool DeviceDatabase::Load(LPCTSTR strFileName)
 		pDriverInfoClone->DeviceInstanceId = pDriverInfo->DeviceInstanceId;
 		pDriverInfo->AndroidHardwareID = UTF8ToCString(device["android_hardware_id"].asCString());
 		pDriverInfoClone->AndroidHardwareID = pDriverInfo->AndroidHardwareID;
-		pDriverInfo->DriverDownlaodURL = UTF8ToCString(device["driver_download_url"].asCString());
-		pDriverInfoClone->DriverDownlaodURL = pDriverInfo->DriverDownlaodURL;
-		CString installType = UTF8ToCString(device["install_type"].asCString());
-		pDriverInfo->InstallType = installType == _T("dpinst") ? DPINST : EXE;
-		pDriverInfoClone->InstallType = pDriverInfo->InstallType;
-		m_instanceIDMap[pDriverInfo->DeviceInstanceId] = pDriverInfo;
-		m_hardwareIDMap[pDriverInfoClone->AndroidHardwareID] = pDriverInfoClone;
+
+		Json::Value drivers = device["drivers"];
+		int nDrivers = drivers.size();
+		for (int j = 0; j < nDrivers; j++)
+		{
+			Json::Value driver = drivers[j];
+			CString os = UTF8ToCString(driver["OS"].asCString());
+			if(os == "all" || os == s_version) {
+				pDriverInfo->DriverDownlaodURL = UTF8ToCString(driver["download_url"].asCString());
+				pDriverInfoClone->DriverDownlaodURL = pDriverInfo->DriverDownlaodURL;
+				CString installType = UTF8ToCString(driver["install_type"].asCString());
+				pDriverInfo->InstallType = installType == _T("dpinst") ? DPINST : EXE;
+				pDriverInfoClone->InstallType = pDriverInfo->InstallType;
+				m_instanceIDMap[pDriverInfo->DeviceInstanceId] = pDriverInfo;
+				m_hardwareIDMap[pDriverInfoClone->AndroidHardwareID] = pDriverInfoClone;
+				break;
+			}
+		}
 	}
 	return true;
 }
