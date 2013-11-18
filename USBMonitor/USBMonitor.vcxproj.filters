@@ -48,12 +48,6 @@
     <ClInclude Include="debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DeviceDatabase.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DriverInstaller.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Thread\EventClass.h">
       <Filter>Thread</Filter>
     </ClInclude>
@@ -62,9 +56,6 @@
     </ClInclude>
     <ClInclude Include="Thread\Thread.h">
       <Filter>Thread</Filter>
-    </ClInclude>
-    <ClInclude Include="DriverInstallerThread.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SocketComm.h">
       <Filter>Header Files</Filter>
@@ -89,12 +80,6 @@
     <ClCompile Include="DeviceMonitor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DeviceDatabase.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="DriverInstaller.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Thread\EventClass.cpp">
       <Filter>Thread</Filter>
     </ClCompile>
@@ -103,9 +88,6 @@
     </ClCompile>
     <ClCompile Include="Thread\Thread.cpp">
       <Filter>Thread</Filter>
-    </ClCompile>
-    <ClCompile Include="DriverInstallerThread.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SocketComm.cpp">
       <Filter>Source Files</Filter>

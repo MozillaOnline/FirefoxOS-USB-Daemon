@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "MainFrame.h"
 #include "App.h"
-#include "DeviceDatabase.h"
 #include "FirefoxLoader.h"
 
 MainFrame::MainFrame(void)
@@ -11,14 +10,12 @@ MainFrame::MainFrame(void)
 	, m_pSocketService(NULL)
 {
 	m_pDeviceMonitor = new DeviceMonitor();
-	m_pDriverInstaller = new DriverInstaller(this);
 	m_pSocketService = new SocketService(this);
 }
 
 MainFrame::~MainFrame(void)
 {
 	delete m_pDeviceMonitor;
-	delete m_pDriverInstaller;
 	delete m_pSocketService;
 }
 
@@ -67,7 +64,7 @@ void MainFrame::InitWindow()
 	m_pSocketService->Start();
 
 	// Load firefox if there exits firefox OS devices
-	if (m_pDeviceMonitor->GetDeviceCount() > 0)
+	if (m_pDeviceMonitor->m_aDeviceList.size() > 0)
 	{
 		FirefoxLoader::TryLoad();
 	}
@@ -137,46 +134,26 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 			OnExecuteOnMainThread();
 		}
 		break;
-	default:						bHandled = FALSE; break;
+	default:
+		bHandled = FALSE;
+		break;
 	}
 	return 0;
 }
 
-// A supported device has been inserted.
-void MainFrame::OnDeviceInserted(LPCTSTR lpstrDevId)
+// A supported device has been changed.
+void MainFrame::OnDeviceChanged(Json::Value &deviceList)
 {
-	// Check if the event is duplicated.
-	m_csDeviceArrivalEvent.Enter();
-	CString strDevId = lpstrDevId;
-	int n = m_deviceArrivalEventQueue.GetCount();
-	for (int i = 0; i < n; i++)
+	int count = deviceList.size();
+	int state = 4;
+	for(int i=0;i<count;i++)
 	{
-		if (m_deviceArrivalEventQueue[i] == strDevId)
-		{
-			m_csDeviceArrivalEvent.Leave();
-			return;
-		}
+		Json::Value device = deviceList[i];
+		state = device["InstallState"].asInt();
 	}
-	// Add a short delay to make sure it is ready to get the driver installation state.
-	::SetTimer(this->GetHWND(), DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID, 500, NULL);
-	m_deviceArrivalEventQueue.Add(strDevId);
-	m_csDeviceArrivalEvent.Leave();
+	SendSocketMessageDevicesList(deviceList);
 
 	CString text;
-	text.Format(_T("%s connected"), DeviceInfo::GetSerialNumber(lpstrDevId));
-	if (m_pDeviceStatusLabel)
-	{
-		m_pDeviceStatusLabel->SetText(text);
-	}
-}
-
-// A supported device has been removed.
-void MainFrame::OnDeviceRemoved(LPCTSTR lpstrDevId)
-{
-	AddSocketMessageDeviceChange(_T("removed"), lpstrDevId);
-
-	CString text;
-	text.Format(_T("%s disconnected"), DeviceInfo::GetSerialNumber(lpstrDevId));
 	if (m_pDeviceStatusLabel)
 	{
 		m_pDeviceStatusLabel->SetText(text);
@@ -191,8 +168,7 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 	LPCTSTR strText = _T("");
 	
 	m_pDeviceMonitor->Lock();
-
-	const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(iItem);
+/*	const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(iItem);
 	if (pInfo == NULL)
 	{
 		m_pDeviceMonitor->Unlock();
@@ -217,26 +193,24 @@ LPCTSTR MainFrame::GetItemText(CControlUI* pList, int iItem, int iSubItem)
 			strText = _T("Unknown");
 		}
 		break;
-	}
+	}*/
 
 	m_pDeviceMonitor->Unlock();
 
 	return strText;
 }
-
 void MainFrame::OnConnect()
 {
 	UpdateClientNum();
+	if(m_pDeviceMonitor->m_aDeviceList.size() > 0)
+	{
+		SendSocketMessageDevicesList(m_pDeviceMonitor->m_aDeviceList);
+	}
 }
 
 void MainFrame::OnDisconnect()
 {
 	UpdateClientNum();
-}
-
-void MainFrame::OnDriverInstalled(const CString& errorName, const CString& errorMessage)
-{
-	AddSocketMessageDriverInstalled(errorName, errorMessage);
 }
 
 void MainFrame::OnStringReceived(const char* utf8String)
@@ -280,7 +254,7 @@ void MainFrame::OnStringReceived(const char* utf8String)
 
 	if (cmdline.GetLength() > 0)
 	{
-		HandleSocketCommand(UTF8ToCString(cmdline));
+//		HandleSocketCommand(UTF8ToCString(cmdline));
 	}
 }
 
@@ -360,7 +334,7 @@ void MainFrame::UpdateDeviceList()
 
 	m_pDeviceList->RemoveAll();
 
-	int count = m_pDeviceMonitor->GetDeviceCount();
+	int count = m_pDeviceMonitor->m_aDeviceList.size();
 
 	for (int i = 0; i < count; i++)
 	{
@@ -390,16 +364,13 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 	{
 		m_csDeviceArrivalEvent.Enter();
 		::KillTimer(GetHWND(), DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID);
-		while (m_deviceArrivalEventQueue.GetCount() > 0)
-		{
-			CString strDevId = m_deviceArrivalEventQueue[0];
-			m_deviceArrivalEventQueue.RemoveAt(0);
-			AddSocketMessageDeviceChange(_T("arrived"), strDevId);
-		}
+		Json::Value cur_deviceList;
+		cur_deviceList = m_pDeviceMonitor->GetDevicesList();
+		SendSocketMessageDevicesList(cur_deviceList);
 		m_csDeviceArrivalEvent.Leave();
 
 		// Load firefox if firefox OS devices exits
-		if (m_pDeviceMonitor->GetDeviceCount() > 0)
+		if (m_pDeviceMonitor->m_aDeviceList.size() > 0)
 		{
 			FirefoxLoader::TryLoad();
 		}
@@ -423,217 +394,16 @@ void MainFrame::OnExecuteOnMainThread()
 void MainFrame::HandleSocketCommand(const CString& strCmdLine)
 {
 	// Parse the command line
-
 	int curPos = 0;
 	LPCTSTR TOKENS = _T("\t");
 
 	// Get the command name
 	CString cmd = strCmdLine.Tokenize(TOKENS, curPos);
-	if (cmd.IsEmpty())
+	if (cmd.IsEmpty() || cmd == _T("shutdown"))
 	{
 		return;
 	}
-
-	// Get parameters
-	CAtlArray<CString> params;
-	do 
-	{
-		CString param = strCmdLine.Tokenize(TOKENS, curPos);
-		if (param.IsEmpty())
-		{
-			break;
-		}
-		params.Add(param);
-	}
-	while(true);
-	int paramCount = params.GetCount();
-
-	CString errorMesasge;
-
-	if (cmd == _T("info"))
-	{
-		HandleCommandInfo();
-	}
-	else if (cmd == _T("install"))
-	{
-		if (paramCount < 2) 
-		{
-			HandleCommandError(_T("Not enough parameters."));
-			return;
-		}
-		HandleCommandInstall(params[0], params[1]);
-	}
-	else if (cmd == _T("list"))
-	{
-		CString devId;
-		if (paramCount > 0)
-		{
-			devId = params[0];
-		}
-		HandleCommandList(devId);
-	} 
-	else if (cmd == _T("shutdown"))
-	{
-		HandleCommandShutdown();
-	}
-	else if (cmd == _T("message"))
-	{
-		HandleCommandMessage();
-	}
-	else
-	{
-		// Invalid command
-		CString message;
-		message.Format(_T("Invalid command: %s"), cmd); 
-		HandleCommandError(message);
-	}
-
-
-}
-
-void MainFrame::HandleCommandInfo()
-{
-	/*
-	{
-		"type": "info",
-		"data": 
-		{
-			"application":"FirefoxOS USB Daemon",
-			"version": 1.0,
-		}
-	}
-	*/
-
-	Json::Value jsonResult;
-	jsonResult["type"] = "info";
-	Json::Value jsonData;
-	CStringA app;
-	app.LoadString(IDS_APP_TITLE);
-	jsonData["application"] = (LPCSTR)app;
-	CStringA version;
-	version.LoadString(IDS_APP_VERSION);
-	jsonData["version"] = strtod(version, NULL);
-	jsonResult["data"] = jsonData;
-	CStringA message = jsonResult.toStyledString().c_str();
-	message += "\n";
-	m_pSocketService->SendString(message);
-}
-
-void MainFrame::HandleCommandInstall(const CString& strDevId, const CString& strPath)
-{
-	/*
-	{
-		"type": "install",
-		"data": 
-		{
-		}
-	}
-	*/
-	CString errorMessage;
-	const DriverInfo* pInfo = DeviceDatabase::Instance()->FindDriverByDeviceInstanceID(strDevId);
-	if (pInfo == NULL)
-	{
-		errorMessage.Format(_T("Device %s not found. "), strDevId);
-	}
-	else if (m_pDriverInstaller->IsRunning())
-	{
-		errorMessage = _T("installer is already running");
-	} 
-	else 
-	{
-		m_pDriverInstaller->Start(pInfo->InstallType, strPath);
-	}
-	if (errorMessage.IsEmpty())
-	{
-		Json::Value jsonResult;
-		jsonResult["type"] = "install";
-		Json::Value jsonData(Json::objectValue);
-		jsonResult["data"] = jsonData;
-		CStringA message = jsonResult.toStyledString().c_str();
-		message += "\n";
-		m_pSocketService->SendString(message);
-	}
-	else 
-	{
-		HandleCommandError(errorMessage);
-	}
-}
-
-static void GetDeviceInfoJson(const DeviceInfo* pInfo, Json::Value& jsonInfo)
-{
-	jsonInfo["deviceInstanceId"] = static_cast<LPCSTR>(CStringToUTF8String(pInfo->DeviceInstanceId));
-	CStringA state;
-	switch (pInfo->InstallState)
-	{
-	case CM_INSTALL_STATE_INSTALLED:
-	case CM_INSTALL_STATE_FINISH_INSTALL:
-		state = "installed";
-		break;
-	case CM_INSTALL_STATE_NEEDS_REINSTALL: // Fall through
-	case CM_INSTALL_STATE_FAILED_INSTALL:
-		state = "failed";
-		break;
-	default:
-		state = "notInstalled";
-		break;
-	}
-	jsonInfo["state"] = (LPCSTR)state;
-}
-
-void MainFrame::HandleCommandList(const CString& strDevId)
-{
-	/*
-	{
-		"type": "list",
-		"data":  [
-				{
-					"deviceInstanceId": "device instance id 1",
-					"state": "installed" | "failed" | "notInstalled"
-				}, 
-				{
-					"deviceInstanceId": "device instance id 2",
-					"state": "installed" | "failed" | "notInstalled"
-				}, 
-				...
-			}
-		]
-	}
-	*/
-	Json::Value jsonResult;
-	jsonResult["type"] = "list";
-	Json::Value jsonData(Json::arrayValue);
-
-	Json::arrayValue;
-	m_pDeviceMonitor->Lock();
-	int count = m_pDeviceMonitor->GetDeviceCount();
-	if (count > 0)
-	{
-		if (strDevId.IsEmpty())
-		{
-			for (int i = 0; i < count; i++)
-			{
-				const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoByIndex(i);
-				Json::Value jsonInfo;
-				GetDeviceInfoJson(pInfo, jsonInfo);
-				jsonData.append(jsonInfo);
-			}
-		}
-		else
-		{
-			const DeviceInfo* pInfo = m_pDeviceMonitor->GetDeviceInfoById(strDevId);
-			if (pInfo)
-			{
-				Json::Value jsonInfo;
-				GetDeviceInfoJson(pInfo, jsonInfo);
-				jsonData.append(jsonInfo);
-			}
-		}
-	}
-	m_pDeviceMonitor->Unlock();
-	jsonResult["data"] = jsonData;
-	CStringA message = jsonResult.toStyledString().c_str();
-	message += "\n";
-	m_pSocketService->SendString(message);
+	HandleCommandShutdown();
 }
 
 void MainFrame::HandleCommandShutdown()
@@ -641,109 +411,8 @@ void MainFrame::HandleCommandShutdown()
 	Close();
 }
 
-void MainFrame::HandleCommandMessage()
+void MainFrame::SendSocketMessageDevicesList(Json::Value &deviceList)
 {
-	CStringA message = DequeuePendingNotification();
-	if (!message.IsEmpty())
-	{
-		message += "\n";
-		m_pSocketService->SendString(message);
-	}
-	else
-	{
-		HandleCommandError("No message found.");
-	}
-}
-
-void MainFrame::HandleCommandError(const CString& strError)
-{
-	/*
-	{
-		"type": "error",
-		"data": 
-		{
-			"errorMessage":"error message",
-		}
-	}
-	*/
-	CStringA utf8Error = CStringToUTF8String(strError);
-	Json::Value jsonResult;
-	jsonResult["type"] = "error";
-	Json::Value jsonData;
-	jsonData["errorMessage"] = static_cast<LPCSTR>(utf8Error);
-	jsonResult["data"] = jsonData;
-	CStringA message = jsonResult.toStyledString().c_str();
-	message += "\n";
+	CStringA message = deviceList.toStyledString().c_str();
 	m_pSocketService->SendString(message);
-}
-
-void MainFrame::SendSocketMessageNotification()
-{
-	m_pSocketService->SendString("\a");
-}
-
-void MainFrame::AddSocketMessageDeviceChange(const CString& strEventType, const CString& strDevId)
-{
-	/*
-	{
-		"type":"deviceChanged",
-		"data": 
-		{
-			// arrival - A new device is ready to use, because either the device is inserted or its driver is just installed.
-			"eventType": "arrived" | "removed",
-			"deviceInstanceId": "device instance id"
-		 }
-	}
-	*/
-	Json::Value jsonMessage;
-	jsonMessage["type"] = "deviceChanged";
-	Json::Value jsonData;
-	jsonData["eventType"] = static_cast<LPCSTR>(CStringToUTF8String(strEventType));
-	jsonData["deviceInstanceId"] = static_cast<LPCSTR>(CStringToUTF8String(strDevId));
-	jsonMessage["data"] = jsonData;
-	CStringA message = jsonMessage.toStyledString().c_str();
-	EnqueuePendingNotification(message);
-}
-
-void MainFrame::AddSocketMessageDriverInstalled(const CString& strErrorName, const CString& strErrorMessage)
-{
-	/*
-	{
-		"type": "driverInstalled",
-		"data": 
-		{
-			"errorName": "Error Name",
-			"errorMessage": "Error Message"
-		}
-	}
-	*/
-	Json::Value jsonMessage;
-	jsonMessage["type"] = "driverInstalled";
-	Json::Value jsonData;
-	jsonData["errorName"] = static_cast<LPCSTR>(CStringToUTF8String(strErrorName));
-	jsonData["errorMessage"] = static_cast<LPCSTR>(CStringToUTF8String(strErrorMessage));
-	jsonMessage["data"] = jsonData;
-	CStringA message = jsonMessage.toStyledString().c_str();
-	EnqueuePendingNotification(message);
-}
-
-void MainFrame::EnqueuePendingNotification(const CStringA& strMessage)
-{
-	m_csPendingNotifications.Enter();
-	m_pendingNotifications.Add(strMessage);
-	m_csPendingNotifications.Leave();
-	SendSocketMessageNotification();
-}
-
-CStringA MainFrame::DequeuePendingNotification()
-{
-	CStringA head;
-	m_csPendingNotifications.Enter();
-	if (m_pendingNotifications.GetCount() > 0)
-	{
-		head = m_pendingNotifications[0];
-		m_pendingNotifications.RemoveAt(0);
-	}
-	m_csPendingNotifications.Leave();
-	return head;
 }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "DeviceMonitor.h"
-#include "DriverInstaller.h"
 #include "SocketService.h"
 
 typedef std::function<void()> MainThreadFunc;
@@ -10,7 +9,6 @@ class MainFrame
 	: public WindowImplBase
 	, public DeviceMonitorObserver
 	, public IListCallbackUI
-	, public DriverInstallerCallback
 	, public SocketServiceCallback
 {
 public:
@@ -62,11 +60,8 @@ public:
 	// Overrides DeviceMonitorObserver
 	//
 
-	// A supported device has been inserted.
-	virtual void OnDeviceInserted(LPCTSTR lpstrDevId) override;
-
-	// A supported device has been removed.
-	virtual void OnDeviceRemoved(LPCTSTR lpstrDevId) override;
+	// A supported device has been changed.
+	virtual void OnDeviceChanged(Json::Value &deviceList) override;
 
 public:
 	// 
@@ -74,15 +69,11 @@ public:
 	//
 	virtual LPCTSTR GetItemText(CControlUI* pList, int iItem, int iSubItem) override;
 
-public:
-	// 
 	// Overrides DriverInstallerCallback
 	//
 	virtual void OnConnect() override;
 	virtual void OnDisconnect() override;
-	virtual void OnDriverInstalled(const CString& errorName, const CString& errorMessage) override;
 
-public:
 	//
 	// Overrides SocketServiceCallback
 	//
@@ -106,21 +97,9 @@ private:
 	void OnExecuteOnMainThread();
 
 	void HandleSocketCommand(const CString& strCmdLine);
-	void HandleCommandInfo();
-	void HandleCommandInstall(const CString& strDevId, const CString& strPath);
-	void HandleCommandList(const CString& strDevId);
 	void HandleCommandShutdown();
-	void HandleCommandMessage();
-	void HandleCommandError(const CString& strError);
 
-	// Notify the socket clients that there is a new message
-	void SendSocketMessageNotification();
-
-	void AddSocketMessageDeviceChange(const CString& strEventType, const CString& strDevId);
-	void AddSocketMessageDriverInstalled(const CString& strErrorName, const CString& strErrorMessage);
-
-	void EnqueuePendingNotification(const CStringA& strMessage);
-	CStringA DequeuePendingNotification();
+	void SendSocketMessageDevicesList(Json::Value &deviceList);
 
 	DeviceMonitor* m_pDeviceMonitor;
 
@@ -133,12 +112,9 @@ private:
 	// The device arrival event will be send to the socket client after a short detail to ensure the client get 
 	// the correct driver state and avoid sending duplicated events.
 	static const UINT_PTR DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID = 0;
-	CAtlArray<CString> m_deviceArrivalEventQueue;
 	CCriticalSection m_csDeviceArrivalEvent;
 
 	static const UINT WM_EXECUTE_ON_MAIN_THREAD = WM_USER + 200;
-
-	DriverInstaller* m_pDriverInstaller;
 	
 	CCriticalSection m_csExecuteOnUIThread;
 
@@ -146,7 +122,4 @@ private:
 	// String buffer to store incomplete socket command
 	CStringA m_strSocketCmdBuffer;
 	CCriticalSection m_csSocket;
-	// Notification strings needed to send to the socket clients.
-	CAtlArray<CStringA> m_pendingNotifications;
-	CCriticalSection m_csPendingNotifications;
 };

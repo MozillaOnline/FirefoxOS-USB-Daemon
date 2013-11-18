@@ -4,7 +4,6 @@
 #include "stdafx.h"
 #include "App.h"
 #include "MainFrame.h"
-#include "DeviceDatabase.h"
 
 LPCTSTR DRIVER_MANAGER_INI_FILE = _T("driver_manager.ini");
 
@@ -76,8 +75,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	pMainFrame->ShowWindow(showUI == 1 ? true : false);
 
 	CPaintManagerUI::MessageLoop();
-
-	DeviceDatabase::Close();
 
 	::CoUninitialize();
 	return 0;

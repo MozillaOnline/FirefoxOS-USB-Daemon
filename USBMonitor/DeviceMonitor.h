@@ -1,40 +1,5 @@
 #pragma once
 
-struct DeviceInfo
-{
-	CString DeviceInstanceId;
-	CString DeviceSerialNumber;
-	CString DeviceDescription;
-	CString AndroidSubDeviceInstanceId;
-	CString AndroidHardwareID;
-
-	/**
-	 * #define CM_INSTALL_STATE_INSTALLED                      0
-     * #define CM_INSTALL_STATE_NEEDS_REINSTALL                1
-	 * #define CM_INSTALL_STATE_FAILED_INSTALL                 2
-     * #define CM_INSTALL_STATE_FINISH_INSTALL                 3
-	 * Wait for device to get ready                            4
-	 */
-	DWORD InstallState;
-
-	DeviceInfo()
-		: InstallState(4)
-	{
-	}
-
-	LPCTSTR GetInstallStateString() const
-	{
-		static LPCTSTR STATES[] = {_T("INSTALLED"), _T("NEEDS_REINSTALL"), _T("FAILED_INSTALL"), _T("FINISH_INSTALL"), _T("UNKOWN")};
-		ASSERT(InstallState <= 4);
-		return STATES[InstallState];
-	}
-
-	static CString GetSerialNumber(const CString& sDevInstanceId)
-	{
-		int pos = sDevInstanceId.ReverseFind(_T('\\'));
-		return sDevInstanceId.Mid(pos + 1);
-	}
-};
 
 /**
  * Observer interface used to observe the device change form DeviceMonitor
@@ -43,16 +8,10 @@ class DeviceMonitorObserver
 {
 public:
 	/**
-	 * A supported device has been inserted.
-	 * @param lpstrDevId The device instance ID.
+	 * A supported device has been changed.
+	 * @param deviceList The current devices list.
 	 */
-	virtual void OnDeviceInserted(LPCTSTR lpstrDevId) = 0;
-
-	/**
-	 * A supported device has been removed.
-	 * @param lpstrDevId The device instance ID.
-	 */
-	virtual void OnDeviceRemoved(LPCTSTR lpstrDevId) = 0;
+	virtual void OnDeviceChanged(Json::Value &deviceList) = 0;
 };
 
 /**
@@ -97,7 +56,7 @@ public:
 	void Unregister();
 
 	// Update the list of current connected devices
-	void UpdateDeviceList();
+	Json::Value GetDevicesList();
 
 	/**
 	 * WM_DEVICECHANGE Handler, called to when there is a change to the hardware configuration of a device or the computer.
@@ -109,43 +68,26 @@ public:
 	 */
 	bool OnDeviceChange (UINT nEventType, PDEV_BROADCAST_HDR pHdr);
 
-	/**
-	 * Get the connected device information by the index.
-	 * @param index The index of the connected device, starting from 0.
-	 */
-	const DeviceInfo* GetDeviceInfoByIndex(int index) const;
-
-	/**
-	 * Get the connected device information by the device instance Id.
-	 * @param szDeviceInstanceId The device instance ID.
-	 */
-	const DeviceInfo* GetDeviceInfoById(LPCTSTR lpcstrDeviceInstanceId) const;
-
-	/**
-	 * Get the connected device information by the android sub-device instance Id.
-	 * @param szDeviceInstanceId The device instance ID.
-	 */
-	const DeviceInfo* GetDeviceInfoBySubDeviceId(LPCTSTR lpcstrDeviceInstanceId) const;
-
-	/**
-	 * The number of connected devices.
-	 */
-	int GetDeviceCount() const { return static_cast<int>(m_aDeviceList.GetCount()); }
+	// Connected devices list
+	Json::Value m_aDeviceList;
 private:
 	// Get the index of the observer in the oberver list
 	int FindObserver(DeviceMonitorObserver* pObserver);
 
-	// Enumerates the sub-devices to find the android sub-device and get its device info.
-	bool GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevInfo);
+	// Enumerates the sub-devices to find the Firefox OS sub-device and get its device info.
+	bool DeviceMonitor::GetFirefoxOSSubDeviceInfo(DEVINST dnDevInst, Json::Value &deviceInfo);
+
+	bool isLoaded;
+
+	bool Load(LPCTSTR strFileName);
+
+	Json::Value m_aDevices;
 
 	// The observer list
 	vector<DeviceMonitorObserver*> m_aObservers;
 
 	// Device notification handle
 	HDEVNOTIFY m_hDevNotify;
-
-	// Connected devices list
-	CAtlArray<CAutoPtr<DeviceInfo>> m_aDeviceList;
 
 	CCriticalSection m_cs;
 };

@@ -20,7 +20,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v110_xp</PlatformToolset>
+    <PlatformToolset>v100</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -89,10 +89,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug.h" />
-    <ClInclude Include="DeviceDatabase.h" />
     <ClInclude Include="DeviceMonitor.h" />
-    <ClInclude Include="DriverInstaller.h" />
-    <ClInclude Include="DriverInstallerThread.h" />
     <ClInclude Include="FirefoxLoader.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="Resource.h" />
@@ -106,10 +103,7 @@
     <ClInclude Include="Thread\Thread.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DeviceDatabase.cpp" />
     <ClCompile Include="DeviceMonitor.cpp" />
-    <ClCompile Include="DriverInstaller.cpp" />
-    <ClCompile Include="DriverInstallerThread.cpp" />
     <ClCompile Include="FirefoxLoader.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="SocketComm.cpp" />

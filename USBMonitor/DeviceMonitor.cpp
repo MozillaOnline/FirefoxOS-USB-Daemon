@@ -1,6 +1,6 @@
 #include "StdAfx.h"
 #include "DeviceMonitor.h"
-#include "DeviceDatabase.h"
+#include "App.h"
 
 /*
  * The GUID_DEVINTERFACE_USB_DEVICE device interface class is defined for USB devices that are attached to a USB hub.
@@ -14,6 +14,7 @@ const GUID GUID_DEVINTERFACE_USB_DEVICE \
 DeviceMonitor::DeviceMonitor(void)
 	: m_hDevNotify(NULL)
 {
+	isLoaded = false;
 }
 
 
@@ -82,7 +83,7 @@ void DeviceMonitor::RegisterToWindow(HWND hWnd)
         &broadcastInterface,
         DEVICE_NOTIFY_WINDOW_HANDLE | DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
 
-	UpdateDeviceList();
+	m_aDeviceList = GetDevicesList();
 }
 
 void DeviceMonitor::Unregister()
@@ -92,240 +93,6 @@ void DeviceMonitor::Unregister()
 		::UnregisterDeviceNotification(m_hDevNotify);
 		m_hDevNotify = NULL;
 	}
-}
-
-/*
- * Convert the dbcc_name to the device instance id.
- * See http://www.codeproject.com/Articles/14500/Detecting-Hardware-Insertion-and-or-Removal.
- * The sample of the dbcc_name of DEV_BROADCAST_DEVICEINTERFACE is as follows:
- * \\?\USB#Vid_04e8&Pid_503b#0002F9A9828E0F06#{a5dcbf10-6530-11d2-901f-00c04fb951ed}
- *
- *   \\?\USB: USB means this is a USB device class
- *   Vid_04e8&Pid_053b: Vid/Pid is VendorID and ProductID (but this is device class specific, USB use Vid/Pid, different device classes use different naming conventions)
- *   002F9A9828E0F06: Serial number.
- *   {a5dcbf10-6530-11d2-901f-00c04fb951ed}: the device interface class GUID
- * The corresponding device instance id is:
- * USB\Vid_04e8&Pid_503b\0002F9A9828E0F06
- * 
- */
-static CString dbcc_nameToDeviceInstanceId(LPCTSTR ddbc_name)
-{
-	CString sEmptyId = _T("");
-
-	if (ddbc_name == NULL)
-	{
-		return sEmptyId;
-	}
-
-	CString sDbccName(ddbc_name);
-
-	// Skip the "\\?\" at the beginning
-	int left = 4;
-	if (sDbccName.GetLength() <= 4) 
-	{
-		return sEmptyId;
-	}
-
-	// Remove the device class ID at the end
-    int right = sDbccName.ReverseFind(_T('#'));
-	if (right < 4)
-	{
-		return sEmptyId;
-	}
-
-	CString sDevId = sDbccName.Mid(left, right - left);
-	sDevId.Replace(_T("#"), _T("\\"));
-	sDevId.MakeUpper();
-
-    return sDevId;
-}
-
-bool DeviceMonitor::OnDeviceChange(UINT nEventType, PDEV_BROADCAST_HDR pHdr)
-{
-	// Check parameters
-	if (nEventType != DBT_DEVICEARRIVAL && nEventType != DBT_DEVICEREMOVECOMPLETE)
-	{
-		return false;
-	}
-	if (pHdr->dbch_devicetype != DBT_DEVTYP_DEVICEINTERFACE)
-	{
-		return false;
-	}
-
-	// Get the device instance id
-	PDEV_BROADCAST_DEVICEINTERFACE pDeviceInterface = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE>(pHdr);
-	CString sDevId = dbcc_nameToDeviceInstanceId(pDeviceInterface->dbcc_name);
-
-	if (nEventType == DBT_DEVICEARRIVAL)
-	{
-		UpdateDeviceList();
-	}
-
-	// Check if the device is supported
-	if (GetDeviceInfoById(sDevId) == NULL)
-	{
-		const DeviceInfo* pInfo = GetDeviceInfoBySubDeviceId(sDevId);
-		if (pInfo == NULL) 
-		{
-			return false;
-		}
-		sDevId = pInfo->DeviceInstanceId;
-	}
-	
-	if (nEventType == DBT_DEVICEREMOVECOMPLETE)
-	{
-		UpdateDeviceList();
-	}
-
-	// Notify the observers that an supported device was changed.
-	int oberverNumber = static_cast<int>(m_aObservers.size());
-	for (int i = 0; i < oberverNumber; i++)
-	{
-		DeviceMonitorObserver* pObserver = m_aObservers[i];
-		if (pObserver == NULL)
-		{
-			continue;
-		}
-		switch(nEventType)
-		{
-		case DBT_DEVICEARRIVAL:
-			{
-				// A supported device has been inserted.
-				pObserver->OnDeviceInserted(sDevId);
-			}
-			break;
-		case DBT_DEVICEREMOVECOMPLETE:
-			{
-				// A supported device has been removed
-				pObserver->OnDeviceRemoved(sDevId);
-			}
-			break;
-		}
-	}
-
-	return true;
-}
-
-const DeviceInfo* DeviceMonitor::GetDeviceInfoByIndex(int index) const
-{
-	if (index < 0 || index >= static_cast<int>(m_aDeviceList.GetCount()))
-	{
-		return NULL;
-	}
-	return m_aDeviceList[index];
-}
-
-const DeviceInfo* DeviceMonitor::GetDeviceInfoById(LPCTSTR lpcstrDeviceInstanceId) const
-{
-	if (lpcstrDeviceInstanceId == NULL)
-	{
-		return NULL;
-	}
-
-	int count = static_cast<int>(m_aDeviceList.GetCount());
-	for (int i = 0; i < count; i++)
-	{
-		const DeviceInfo* pDevInfo = m_aDeviceList[i];
-		if (pDevInfo->DeviceInstanceId == lpcstrDeviceInstanceId)
-		{
-			return pDevInfo;
-		}
-	}
-	return NULL;
-}
-
-const DeviceInfo* DeviceMonitor::GetDeviceInfoBySubDeviceId(LPCTSTR lpcstrDeviceInstanceId) const
-{
-	if (lpcstrDeviceInstanceId == NULL)
-	{
-		return NULL;
-	}
-
-	int count = static_cast<int>(m_aDeviceList.GetCount());
-	for (int i = 0; i < count; i++)
-	{
-		const DeviceInfo* pDevInfo = m_aDeviceList[i];
-		if (pDevInfo->AndroidSubDeviceInstanceId == lpcstrDeviceInstanceId)
-		{
-			return pDevInfo;
-		}
-	}
-	return NULL;
-}
-
-void DeviceMonitor::UpdateDeviceList()
-{
-	m_cs.Enter();
-
-	m_aDeviceList.RemoveAll();
-
-	// Prepare to enumerate all the USB devices
-    HDEVINFO hDeviceInfo = ::SetupDiGetClassDevs(&GUID_DEVINTERFACE_USB_DEVICE,
-                                     NULL,
-                                     NULL,
-                                     (DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
-    if (hDeviceInfo == INVALID_HANDLE_VALUE)
-    {
-		m_cs.Leave();
-		return;
-	}
-
-	// Enumerate all the USB devices to find the supported devices
-	SP_DEVINFO_DATA spDevInfoData;
-	spDevInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
-    for(int i = 0; SetupDiEnumDeviceInfo(hDeviceInfo, i, &spDevInfoData); i++)
-    {
-        CAutoPtr<DeviceInfo> pNode(new DeviceInfo());
-
-		// Get the device instance ID
-		TCHAR szBuffer[MAX_PATH];
-		if (!::SetupDiGetDeviceInstanceId(hDeviceInfo,
-                                        &spDevInfoData,
-                                        szBuffer,
-                                        MAX_PATH, NULL))
-		{
-			break;
-		}
-		pNode->DeviceInstanceId = szBuffer;
-
-		bool bMatched = false;
-		// Try to match the device instance ID first.
-		if (DeviceDatabase::Instance()->FindDriverByDeviceInstanceID(pNode->DeviceInstanceId))
-		{
-			if (GetAndroidSubDeviceInfo(spDevInfoData.DevInst, pNode))
-			{
-				bMatched = true;
-			}
-			else
-			{
-				pNode->InstallState = 4;
-				TRACE(_T("Failed to get android sub device!\n"));
-			}
-		}
-		// If the device instance ID doesn't match, try to match the android device hardware ID.
-		else if (GetAndroidSubDeviceInfo(spDevInfoData.DevInst, pNode))
-		{
-			const DriverInfo* pDriverInfo = DeviceDatabase::Instance()->FindDriverByAndroidHardwareID(pNode->AndroidHardwareID);
-			if (pDriverInfo) 
-			{
-				// Before the driver is installed, we sometimes cannot get the device instance ID, so we use the one specified in the driver list file.
-				pNode->AndroidSubDeviceInstanceId = pNode->DeviceInstanceId;
-				pNode->DeviceInstanceId = pDriverInfo->DeviceInstanceId;
-				bMatched = true;
-			}
-		}
-
-		if (bMatched)
-		{
-			m_aDeviceList.Add(pNode);
-			pNode->DeviceSerialNumber = DeviceInfo::GetSerialNumber(pNode->DeviceInstanceId);
-			pNode.Detach();
-		}
-    }
-
-	::SetupDiDestroyDeviceInfoList(hDeviceInfo);
-
-	m_cs.Leave();
 }
 
 /**
@@ -396,72 +163,152 @@ static CString GetDevNodePropertyString(DEVINST dnDevInst, ULONG ulProperty)
 	return result;
 }
 
-bool DeviceMonitor::GetAndroidSubDeviceInfo(DEVINST dnDevInst, DeviceInfo* pDevInfo)
+bool DeviceMonitor::GetFirefoxOSSubDeviceInfo(DEVINST dnDevInst, Json::Value &deviceInfo)
 {
-	ASSERT(pDevInfo);
-
 	// Enumerate the sub-devices to find the android sub-device
-
+	Json::Reader reader;
+	reader.parse("{\"AndroidHardwareID\": \"\",\"InstallState\": \"\"}", deviceInfo);
 	DEVINST dnChild = NULL;
+
 	if (CM_Get_Child(&dnChild, dnDevInst, 0) != CR_SUCCESS)
 	{
 		return false;
 	}
 
-	bool found = false;
-	bool candidateFound = false;
 	do
 	{
-		/**
-		 * If the driver of the android device is not installed, the device description should be "Android" or "Android Device",
-		 * and the device class is empty.
-		 * Otherwise the device description is specified by the driver, and the class GUID is {f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}.
-		 * As a result, we can find the android device by checking either its decription or device class GUID.
-		 * Some sub device, which is not an android ADB interface, will also have the device description of "Android" if its driver
-		 * is not installed. 
-		 * To find the correct android device, we should find by the class GUID first, and then by the description. 
-		 */
-		CString sDeviceDescription = GetDevNodePropertyString(dnChild, CM_DRP_DEVICEDESC);
-		CString sLowercaseDesc = sDeviceDescription;
-		sLowercaseDesc.MakeLower();
-
-		CString sClassGUID = GetDevNodePropertyString(dnChild, CM_DRP_CLASSGUID);
-		
-		if (sClassGUID == _T("{f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}"))
-		{
-			// We find an android device
-			found = true;
-		}
-		else if (!candidateFound && (sLowercaseDesc.Find(_T("android")) != -1 || sLowercaseDesc.Find(_T("firefox")) != -1))
-		{
-			// A candidate was found. If no android device will be found, we will use this candidate.
-			candidateFound = true;
-		} else {
-			continue;
-		}
-
 		// Get device info.
-		TCHAR szDeviceID[MAX_DEVICE_ID_LEN];
-		if (CM_Get_Device_ID(dnChild, szDeviceID, MAX_DEVICE_ID_LEN, 0) == CR_SUCCESS)
-		{
-			pDevInfo->AndroidSubDeviceInstanceId = szDeviceID;
-		}
-		pDevInfo->DeviceDescription = sDeviceDescription;
-		pDevInfo->AndroidHardwareID = GetDevNodePropertyString(dnChild, CM_DRP_HARDWAREID);
-		pDevInfo->InstallState = _tcstol((LPCTSTR)GetDevNodePropertyString(dnChild, CM_DRP_INSTALL_STATE), NULL, 16);
-		// Sometimes InstallState shows the driver is installed, but no driver exits. We need to check the CM_DRP_DRIVER property to ensure the driver is installed correctly.
-		if (pDevInfo->InstallState == CM_INSTALL_STATE_INSTALLED && GetDevNodePropertyString(dnChild, CM_DRP_DRIVER).IsEmpty())
-		{
-			pDevInfo->InstallState = CM_INSTALL_STATE_FAILED_INSTALL;
-		}
-		TRACE(_T("Android device found!\nDevice ID:%s\nDescription: %s\nHardware ID: %s\nDriver install state: 0x%lx\n\n"), szDeviceID, (LPCTSTR)pDevInfo->DeviceDescription, (LPCTSTR)pDevInfo->AndroidHardwareID, pDevInfo->InstallState);
-
-		if (found)
-		{
-			return true;
+		deviceInfo["AndroidHardwareID"] = Json::Value(CStringToUTF8String(GetDevNodePropertyString(dnChild, CM_DRP_HARDWAREID)));
+		int nDevice = m_aDevices.size();
+		for (int i = 0; i < nDevice; i++) {
+			Json::Value device = m_aDevices[i];
+			if(!strcmp(deviceInfo["AndroidHardwareID"].asCString(), device.asCString()))
+			{
+				deviceInfo["InstallState"] = Json::Value(_tcstol((LPCTSTR)GetDevNodePropertyString(dnChild, CM_DRP_INSTALL_STATE), NULL, 16));
+				// Sometimes InstallState shows the driver is installed, but no driver exits. We need to check the CM_DRP_DRIVER property to ensure the driver is installed correctly.
+				if (deviceInfo["InstallState"].asInt() == CM_INSTALL_STATE_INSTALLED && GetDevNodePropertyString(dnChild, CM_DRP_DRIVER).IsEmpty())
+				{
+					deviceInfo["InstallState"] = Json::Value(CM_INSTALL_STATE_FAILED_INSTALL);
+				}
+				TRACE(_T("Firefox OS device found!\nHardware ID: %s\nDriver install state: 0x%lx\n\n"), deviceInfo["AndroidHardwareID"], deviceInfo["InstallState"]);
+				return true;
+			}
 		}
 	}
 	while(CM_Get_Sibling(&dnChild, dnChild, 0) == CR_SUCCESS);
+	return false;
+}
 
-	return candidateFound;
+bool DeviceMonitor::Load(LPCTSTR strFileName)
+{
+	USES_CONVERSION;
+
+	if (strFileName == NULL)
+	{
+		return true;
+	}
+
+	std::ifstream fs(T2A(strFileName));
+	if (!fs)
+	{
+		TRACE(_T("Failed to open %s\n"), strFileName);
+		return false;
+	}
+	Json::Value root;
+	Json::Reader reader;
+	bool success = reader.parse(fs, root, false);
+	fs.close();
+	if (!success)
+	{
+		CString strMsg;
+		strMsg = reader.getFormattedErrorMessages().c_str();
+		TRACE(_T("%s\n"), (LPCTSTR)strMsg);
+		return false;
+	}
+	m_aDevices = root["devices"];
+	return true;
+}
+
+Json::Value DeviceMonitor::GetDevicesList()
+{
+	if(!isLoaded)
+	{
+		CString fileName = CPaintManagerUI::GetInstancePath() + _T("devices.json");
+		Load(fileName);
+		isLoaded = true;
+	}
+	m_cs.Enter();
+
+	Json::Value deviceList;
+	Json::Reader reader;
+	reader.parse("[]", deviceList);
+	// Prepare to enumerate all the USB devices
+    HDEVINFO hDeviceInfo = ::SetupDiGetClassDevs(&GUID_DEVINTERFACE_USB_DEVICE,
+                                     NULL,
+                                     NULL,
+                                     (DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
+    if (hDeviceInfo == INVALID_HANDLE_VALUE)
+    {
+		m_cs.Leave();
+		return deviceList;
+	}
+
+	// Enumerate all the USB devices to find the supported devices
+	SP_DEVINFO_DATA spDevInfoData;
+	spDevInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
+    for(int i = 0; SetupDiEnumDeviceInfo(hDeviceInfo, i, &spDevInfoData); i++)
+    {
+		Json::Value pNode;
+		// Get the device instance ID
+		TCHAR szBuffer[MAX_PATH];
+		if (!::SetupDiGetDeviceInstanceId(hDeviceInfo,
+                                        &spDevInfoData,
+                                        szBuffer,
+                                        MAX_PATH, NULL))
+		{
+			break;
+		}
+		// Try to match the device instance ID first.
+		if (GetFirefoxOSSubDeviceInfo(spDevInfoData.DevInst, pNode))
+		{
+			deviceList.append(pNode);
+		}
+    }
+	::SetupDiDestroyDeviceInfoList(hDeviceInfo);
+	m_cs.Leave();
+	return deviceList;
+}
+
+bool DeviceMonitor::OnDeviceChange(UINT nEventType, PDEV_BROADCAST_HDR pHdr)
+{
+	// Check parameters
+	if (nEventType != DBT_DEVICEARRIVAL && nEventType != DBT_DEVICEREMOVECOMPLETE)
+	{
+		return false;
+	}
+	if (pHdr->dbch_devicetype != DBT_DEVTYP_DEVICEINTERFACE)
+	{
+		return false;
+	}
+	Json::Value cur_deviceList;
+	cur_deviceList = GetDevicesList();
+	int nNeedUpdate = m_aDeviceList.compare(cur_deviceList);
+	if(!nNeedUpdate)
+	{
+		return false;
+	}
+	m_aDeviceList = cur_deviceList;
+	// Notify the observers that an supported device was changed.
+	int oberverNumber = static_cast<int>(m_aObservers.size());
+	for (int i = 0; i < oberverNumber; i++)
+	{
+		DeviceMonitorObserver* pObserver = m_aObservers[i];
+		if (pObserver == NULL)
+		{
+			continue;
+		}
+		pObserver->OnDeviceChanged(m_aDeviceList);
+	}
+
+	return true;
 }
