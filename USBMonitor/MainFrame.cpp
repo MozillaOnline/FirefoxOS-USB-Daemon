@@ -142,7 +142,7 @@ LRESULT MainFrame::HandleCustomMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 }
 
 // A supported device has been changed.
-void MainFrame::OnDeviceChanged(Json::Value &deviceList)
+void MainFrame::OnDeviceChanged(Json::Value &deviceList, bool bInsert)
 {
 	int count = deviceList.size();
 	int state = 4;
@@ -159,6 +159,10 @@ void MainFrame::OnDeviceChanged(Json::Value &deviceList)
 		m_pDeviceStatusLabel->SetText(text);
 	}
 
+	if(bInsert)
+	{
+		::SetTimer(this->GetHWND(), DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID, 500, NULL);
+	}
 	UpdateDeviceList();
 }
 
@@ -366,7 +370,7 @@ void MainFrame::OnTimer(UINT_PTR nIDEvent)
 		::KillTimer(GetHWND(), DEVICE_ARRIVAL_EVENT_DELAY_TIMER_ID);
 		Json::Value cur_deviceList;
 		cur_deviceList = m_pDeviceMonitor->GetDevicesList();
-		SendSocketMessageDevicesList(cur_deviceList);
+		//SendSocketMessageDevicesList(cur_deviceList);
 		m_csDeviceArrivalEvent.Leave();
 
 		// Load firefox if firefox OS devices exits

@@ -307,7 +307,21 @@ bool DeviceMonitor::OnDeviceChange(UINT nEventType, PDEV_BROADCAST_HDR pHdr)
 		{
 			continue;
 		}
-		pObserver->OnDeviceChanged(m_aDeviceList);
+		switch(nEventType)
+		{
+		case DBT_DEVICEARRIVAL:
+			{
+				// A supported device has been inserted.
+				pObserver->OnDeviceChanged(m_aDeviceList, true);
+			}
+			break;
+		case DBT_DEVICEREMOVECOMPLETE:
+			{
+				// A supported device has been removed
+				pObserver->OnDeviceChanged(m_aDeviceList, false);
+			}
+			break;
+		}
 	}
 
 	return true;

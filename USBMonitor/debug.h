@@ -82,7 +82,7 @@ inline void _cdecl Trace0DBFB266_B244_11D3_A459_000629B2F85(TCHAR* lpszFormat, .
 #else	// !_DEBUG
 
 #define	VERIFY(f)	((void)(f))
-#define TRACE		1 ? (void)0 : Trace0DBFB266_B244_11D3_A459_000629B2F85
+#define TRACE(...)
 
 #endif	// _DEBUG
 

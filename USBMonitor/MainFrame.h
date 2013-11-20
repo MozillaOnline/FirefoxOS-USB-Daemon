@@ -61,7 +61,7 @@ public:
 	//
 
 	// A supported device has been changed.
-	virtual void OnDeviceChanged(Json::Value &deviceList) override;
+	virtual void OnDeviceChanged(Json::Value &deviceList, bool bInsert) override;
 
 public:
 	// 

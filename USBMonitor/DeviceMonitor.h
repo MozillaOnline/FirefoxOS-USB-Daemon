@@ -11,7 +11,7 @@ public:
 	 * A supported device has been changed.
 	 * @param deviceList The current devices list.
 	 */
-	virtual void OnDeviceChanged(Json::Value &deviceList) = 0;
+	virtual void OnDeviceChanged(Json::Value &deviceList, bool bInsert) = 0;
 };
 
 /**
