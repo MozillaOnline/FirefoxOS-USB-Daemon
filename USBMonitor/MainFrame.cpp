@@ -258,7 +258,7 @@ void MainFrame::OnStringReceived(const char* utf8String)
 
 	if (cmdline.GetLength() > 0)
 	{
-//		HandleSocketCommand(UTF8ToCString(cmdline));
+		HandleSocketCommand(UTF8ToCString(cmdline));
 	}
 }
 
@@ -403,7 +403,7 @@ void MainFrame::HandleSocketCommand(const CString& strCmdLine)
 
 	// Get the command name
 	CString cmd = strCmdLine.Tokenize(TOKENS, curPos);
-	if (cmd.IsEmpty() || cmd == _T("shutdown"))
+	if (cmd.IsEmpty() || cmd != _T("shutdown"))
 	{
 		return;
 	}
