@@ -58,6 +58,14 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	{
 		return 0;
 	}
+	CString strDisabled;
+	CString fileName = CPaintManagerUI::GetInstancePath() + DRIVER_MANAGER_INI_FILE;
+	::GetPrivateProfileString(_T("status"), _T("disabled"), _T(""), strDisabled.GetBuffer(MAX_PATH), MAX_PATH, static_cast<LPCTSTR>(fileName));
+	strDisabled.ReleaseBuffer();
+	if (!strDisabled.CompareNoCase(_T("true"))) {
+		return 0;
+	}
+	INT showUI = ::GetPrivateProfileInt(_T("app"), _T("show_ui"), 0,  static_cast<LPCTSTR>(fileName));
 
 	CPaintManagerUI::SetInstance(hInstance);
 
@@ -70,8 +78,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	pMainFrame->CenterWindow();
 	pMainFrame->SetIcon(IDI_USBMONITOR);
 
-	CString fileName = CPaintManagerUI::GetInstancePath() + DRIVER_MANAGER_INI_FILE;
-	INT showUI = ::GetPrivateProfileInt(_T("app"), _T("show_ui"), 0,  static_cast<LPCTSTR>(fileName));
 	pMainFrame->ShowWindow(showUI == 1 ? true : false);
 
 	CPaintManagerUI::MessageLoop();
