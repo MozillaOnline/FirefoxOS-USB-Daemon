@@ -166,8 +166,6 @@ static CString GetDevNodePropertyString(DEVINST dnDevInst, ULONG ulProperty)
 bool DeviceMonitor::GetFirefoxOSSubDeviceInfo(DEVINST dnDevInst, Json::Value &deviceInfo)
 {
 	// Enumerate the sub-devices to find the android sub-device
-	Json::Reader reader;
-	reader.parse("{\"DeviceInfo\": \"\",\"InstallState\": \"\"}", deviceInfo);
 	DEVINST dnChild = NULL;
 
 	if (CM_Get_Child(&dnChild, dnDevInst, 0) != CR_SUCCESS)
@@ -184,7 +182,7 @@ bool DeviceMonitor::GetFirefoxOSSubDeviceInfo(DEVINST dnDevInst, Json::Value &de
 			Json::Value device = m_aDevices[i];
 			if(!strcmp(hardwareId.asCString(), device["hardware_id"].asCString()))
 			{
-				deviceInfo["DeviceInfo"] = device;
+				deviceInfo = device;
 				deviceInfo["InstallState"] = Json::Value(_tcstol((LPCTSTR)GetDevNodePropertyString(dnChild, CM_DRP_INSTALL_STATE), NULL, 16));
 				// Sometimes InstallState shows the driver is installed, but no driver exits. We need to check the CM_DRP_DRIVER property to ensure the driver is installed correctly.
 				if (deviceInfo["InstallState"].asInt() == CM_INSTALL_STATE_INSTALLED && GetDevNodePropertyString(dnChild, CM_DRP_DRIVER).IsEmpty())
