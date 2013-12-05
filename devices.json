@@ -1,0 +1,6 @@
+{
+	"version":1.0,
+	"devices": [{"display_name": "MSM7627A",
+	"hardware_id": "USB\\VID_05C6&PID_9025&REV_0231&MI_01,USB\\VID_05C6&PID_9025&MI_01",
+	"vendor_id": "05c6:9025"}]
+}

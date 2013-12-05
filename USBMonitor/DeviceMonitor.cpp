@@ -167,7 +167,7 @@ bool DeviceMonitor::GetFirefoxOSSubDeviceInfo(DEVINST dnDevInst, Json::Value &de
 {
 	// Enumerate the sub-devices to find the android sub-device
 	Json::Reader reader;
-	reader.parse("{\"AndroidHardwareID\": \"\",\"InstallState\": \"\"}", deviceInfo);
+	reader.parse("{\"DeviceInfo\": \"\",\"InstallState\": \"\"}", deviceInfo);
 	DEVINST dnChild = NULL;
 
 	if (CM_Get_Child(&dnChild, dnDevInst, 0) != CR_SUCCESS)
@@ -178,19 +178,19 @@ bool DeviceMonitor::GetFirefoxOSSubDeviceInfo(DEVINST dnDevInst, Json::Value &de
 	do
 	{
 		// Get device info.
-		deviceInfo["AndroidHardwareID"] = Json::Value(CStringToUTF8String(GetDevNodePropertyString(dnChild, CM_DRP_HARDWAREID)));
+		Json::Value hardwareId = Json::Value(CStringToUTF8String(GetDevNodePropertyString(dnChild, CM_DRP_HARDWAREID)));
 		int nDevice = m_aDevices.size();
 		for (int i = 0; i < nDevice; i++) {
 			Json::Value device = m_aDevices[i];
-			if(!strcmp(deviceInfo["AndroidHardwareID"].asCString(), device.asCString()))
+			if(!strcmp(hardwareId.asCString(), device["hardware_id"].asCString()))
 			{
+				deviceInfo["DeviceInfo"] = device;
 				deviceInfo["InstallState"] = Json::Value(_tcstol((LPCTSTR)GetDevNodePropertyString(dnChild, CM_DRP_INSTALL_STATE), NULL, 16));
 				// Sometimes InstallState shows the driver is installed, but no driver exits. We need to check the CM_DRP_DRIVER property to ensure the driver is installed correctly.
 				if (deviceInfo["InstallState"].asInt() == CM_INSTALL_STATE_INSTALLED && GetDevNodePropertyString(dnChild, CM_DRP_DRIVER).IsEmpty())
 				{
 					deviceInfo["InstallState"] = Json::Value(CM_INSTALL_STATE_FAILED_INSTALL);
 				}
-				TRACE(_T("Firefox OS device found!\nHardware ID: %s\nDriver install state: 0x%lx\n\n"), deviceInfo["AndroidHardwareID"], deviceInfo["InstallState"]);
 				return true;
 			}
 		}
@@ -233,7 +233,7 @@ Json::Value DeviceMonitor::GetDevicesList()
 {
 	if(!isLoaded)
 	{
-		CString fileName = CPaintManagerUI::GetInstancePath() + _T("devices.json");
+		CString fileName = CPaintManagerUI::GetInstancePath() + _T("../devices.json");
 		Load(fileName);
 		isLoaded = true;
 	}
