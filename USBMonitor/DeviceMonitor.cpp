@@ -175,12 +175,18 @@ bool DeviceMonitor::GetFirefoxOSSubDeviceInfo(DEVINST dnDevInst, Json::Value &de
 
 	do
 	{
+
 		// Get device info.
 		Json::Value hardwareId = Json::Value(CStringToUTF8String(GetDevNodePropertyString(dnChild, CM_DRP_HARDWAREID)));
 		int nDevice = m_aDevices.size();
 		for (int i = 0; i < nDevice; i++) {
 			Json::Value device = m_aDevices[i];
-			if(!strcmp(hardwareId.asCString(), device["hardware_id"].asCString()))
+			char *tmpStr1, *tmpStr2;
+            tmpStr1 = (char *)malloc(strlen(hardwareId.asCString()));
+			tmpStr2 = (char *)malloc(strlen(device["hardware_id"].asCString()));
+			strcpy(tmpStr1,hardwareId.asCString());
+            strcpy(tmpStr2,device["hardware_id"].asCString()); 
+			if(!strcmp(strupr(tmpStr1), strupr(tmpStr2)))
 			{
 				deviceInfo = device;
 				deviceInfo["InstallState"] = Json::Value(_tcstol((LPCTSTR)GetDevNodePropertyString(dnChild, CM_DRP_INSTALL_STATE), NULL, 16));
