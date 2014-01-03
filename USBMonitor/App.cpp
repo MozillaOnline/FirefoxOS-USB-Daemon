@@ -58,6 +58,13 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	{
 		return 0;
 	}
+
+	CPaintManagerUI::SetInstance(hInstance);
+
+	CPaintManagerUI::SetResourcePath(CPaintManagerUI::GetInstancePath());
+
+	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
 	CString strDisabled;
 	CString fileName = CPaintManagerUI::GetInstancePath() + DRIVER_MANAGER_INI_FILE;
 	::GetPrivateProfileString(_T("status"), _T("disabled"), _T(""), strDisabled.GetBuffer(MAX_PATH), MAX_PATH, static_cast<LPCTSTR>(fileName));
@@ -66,12 +73,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 		return 0;
 	}
 	INT showUI = ::GetPrivateProfileInt(_T("app"), _T("show_ui"), 0,  static_cast<LPCTSTR>(fileName));
-
-	CPaintManagerUI::SetInstance(hInstance);
-
-	CPaintManagerUI::SetResourcePath(CPaintManagerUI::GetInstancePath());
-
-	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
 	MainFrame* pMainFrame = MainFrame::GetInstance();
 	pMainFrame->Create(NULL, strAppTitle, UI_WNDSTYLE_FRAME, 0L, 0, 0, 190, 341);
