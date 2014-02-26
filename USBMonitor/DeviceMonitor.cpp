@@ -182,10 +182,10 @@ bool DeviceMonitor::GetFirefoxOSSubDeviceInfo(DEVINST dnDevInst, Json::Value &de
 		for (int i = 0; i < nDevice; i++) {
 			Json::Value device = m_aDevices[i];
 			char *tmpStr1, *tmpStr2;
-            tmpStr1 = (char *)malloc(strlen(hardwareId.asCString()));
+			tmpStr1 = (char *)malloc(strlen(hardwareId.asCString()));
 			tmpStr2 = (char *)malloc(strlen(device["hardware_id"].asCString()));
 			strcpy(tmpStr1,hardwareId.asCString());
-            strcpy(tmpStr2,device["hardware_id"].asCString()); 
+			strcpy(tmpStr2,device["hardware_id"].asCString());
 			if(!strcmp(strupr(tmpStr1), strupr(tmpStr2)))
 			{
 				deviceInfo = device;
